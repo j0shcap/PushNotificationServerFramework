@@ -93,7 +93,9 @@ def test_reregistering_with_only_token_preserves_stored_fields(client):
 
 def test_concurrent_registration_race_falls_back_to_update(test_engine):
     with Session(test_engine) as session:
-        DeviceService(session=session).register_device(Device(token="abc123", name="winner"))
+        DeviceService(session=session).register_device(
+            Device(token="abc123", name="winner")
+        )
 
     with Session(test_engine) as session:
         service = DeviceService(session=session)

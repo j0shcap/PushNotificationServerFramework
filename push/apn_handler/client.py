@@ -1,11 +1,12 @@
 import collections
-import httpx
 import json
 import logging
+from collections.abc import Iterable
 from enum import Enum
-from typing import Dict, Iterable, Optional, Tuple, Union
 
-from .credentials import Credentials, CertificateCredentials, TokenCredentials
+import httpx
+
+from .credentials import CertificateCredentials, Credentials, TokenCredentials
 from .errors import exception_class_for_reason
 from .payload import Payload
 
@@ -31,7 +32,7 @@ DEFAULT_APNS_PRIORITY = NotificationPriority.Immediate
 logger = logging.getLogger(__name__)
 
 
-class APNsClient(object):
+class APNsClient:
     SANDBOX_SERVER = "api.development.push.apple.com"
     LIVE_SERVER = "api.push.apple.com"
 
@@ -40,15 +41,15 @@ class APNsClient(object):
 
     def __init__(
         self,
-        credentials: Union[Credentials, str],
+        credentials: Credentials | str,
         use_sandbox: bool = False,
         use_alternative_port: bool = False,
-        proto: Optional[str] = None,
-        json_encoder: Optional[type] = None,
-        password: Optional[str] = None,
-        proxy_host: Optional[str] = None,
-        proxy_port: Optional[int] = None,
-        heartbeat_period: Optional[float] = None,
+        proto: str | None = None,
+        json_encoder: type | None = None,
+        password: str | None = None,
+        proxy_host: str | None = None,
+        proxy_port: int | None = None,
+        heartbeat_period: float | None = None,
     ) -> None:
         if isinstance(credentials, str):
             self.__credentials = CertificateCredentials(credentials, password)
@@ -75,9 +76,9 @@ class APNsClient(object):
         self,
         use_sandbox: bool,
         use_alternative_port: bool,
-        proto: Optional[str],
-        proxy_host: Optional[str],
-        proxy_port: Optional[int],
+        proto: str | None,
+        proxy_host: str | None,
+        proxy_port: int | None,
     ) -> None:
         self.__server = self.SANDBOX_SERVER if use_sandbox else self.LIVE_SERVER
         self.__port = (
@@ -88,10 +89,10 @@ class APNsClient(object):
         self,
         token_hex: str,
         notification: Payload,
-        topic: Optional[str] = None,
+        topic: str | None = None,
         priority: NotificationPriority = NotificationPriority.Immediate,
-        expiration: Optional[int] = None,
-        collapse_id: Optional[str] = None,
+        expiration: int | None = None,
+        collapse_id: str | None = None,
     ) -> None:
         status, reason = self.send_notification_sync(
             token_hex,
@@ -111,12 +112,12 @@ class APNsClient(object):
         token_hex: str,
         notification: Payload,
         client: httpx.Client,
-        topic: Optional[str] = None,
+        topic: str | None = None,
         priority: NotificationPriority = NotificationPriority.Immediate,
-        expiration: Optional[int] = None,
-        collapse_id: Optional[str] = None,
-        push_type: Optional[NotificationType] = None,
-    ) -> Tuple[int, str]:
+        expiration: int | None = None,
+        collapse_id: str | None = None,
+        push_type: NotificationType | None = None,
+    ) -> tuple[int, str]:
         json_str = json.dumps(
             notification.dict(),
             cls=self.__json_encoder,
@@ -206,12 +207,12 @@ class APNsClient(object):
     def send_notification_batch(
         self,
         notifications: Iterable[Notification],
-        topic: Optional[str] = None,
+        topic: str | None = None,
         priority: NotificationPriority = NotificationPriority.Immediate,
-        expiration: Optional[int] = None,
-        collapse_id: Optional[str] = None,
-        push_type: Optional[NotificationType] = None,
-    ) -> Dict[str, str]:
+        expiration: int | None = None,
+        collapse_id: str | None = None,
+        push_type: NotificationType | None = None,
+    ) -> dict[str, str]:
         """
         Send a notification to a list of tokens in batch.
 
@@ -236,7 +237,9 @@ class APNsClient(object):
                 )
             except httpx.HTTPError as error:
                 logger.warning(
-                    "Network error sending to token %s: %r", next_notification.token, error
+                    "Network error sending to token %s: %r",
+                    next_notification.token,
+                    error,
                 )
                 results[next_notification.token] = "ConnectionFailed"
                 continue

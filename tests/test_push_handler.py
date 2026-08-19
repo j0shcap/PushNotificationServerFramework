@@ -35,7 +35,9 @@ def make_recording_handler(monkeypatch):
 
     transport = httpx.MockTransport(route)
     real_client = httpx.Client
-    monkeypatch.setattr(httpx, "Client", lambda **kwargs: real_client(transport=transport))
+    monkeypatch.setattr(
+        httpx, "Client", lambda **kwargs: real_client(transport=transport)
+    )
     return PushHandler(), requests
 
 
@@ -66,11 +68,14 @@ def test_network_failure_for_one_token_does_not_block_others(monkeypatch):
 
     transport = httpx.MockTransport(route)
     real_client = httpx.Client
-    monkeypatch.setattr(httpx, "Client", lambda **kwargs: real_client(transport=transport))
+    monkeypatch.setattr(
+        httpx, "Client", lambda **kwargs: real_client(transport=transport)
+    )
     handler = PushHandler()
 
     results = handler.send_multiple_push(
-        to_device_tokens=["good-token", "unreachable-token", "other-token"], body="hello"
+        to_device_tokens=["good-token", "unreachable-token", "other-token"],
+        body="hello",
     )
 
     assert results["good-token"] == "Success"

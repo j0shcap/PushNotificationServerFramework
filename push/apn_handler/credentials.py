@@ -1,6 +1,5 @@
 import ssl
 import time
-from typing import Optional, Tuple
 
 import jwt
 
@@ -9,23 +8,23 @@ DEFAULT_TOKEN_ENCRYPTION_ALGORITHM = "ES256"
 
 
 # Abstract Base class. This should not be instantiated directly.
-class Credentials(object):
-    def __init__(self, ssl_context: Optional[ssl.SSLContext] = None) -> None:
+class Credentials:
+    def __init__(self, ssl_context: ssl.SSLContext | None = None) -> None:
         super().__init__()
         self.ssl_context = ssl_context
 
-    def get_authorization_header(self, topic: Optional[str]) -> Optional[str]:
+    def get_authorization_header(self, topic: str | None) -> str | None:
         return None
 
 
 # Credentials subclass for certificate authentication
 class CertificateCredentials(Credentials):
     def __init__(
-        self, cert_file: Optional[str] = None, password: Optional[str] = None
+        self, cert_file: str | None = None, password: str | None = None
     ) -> None:
         ssl_context = ssl.create_default_context()
         ssl_context.load_cert_chain(cert_file, password=password)
-        super(CertificateCredentials, self).__init__(ssl_context)
+        super().__init__(ssl_context)
 
 
 # Credentials subclass for JWT token based authentication
@@ -47,9 +46,9 @@ class TokenCredentials(Credentials):
         self.__jwt_token = None  # type: Optional[Tuple[float, str]]
 
         # Use the default constructor because we don't have an SSL context
-        super(TokenCredentials, self).__init__()
+        super().__init__()
 
-    def get_authorization_header(self, topic: Optional[str]) -> str:
+    def get_authorization_header(self, topic: str | None) -> str:
         token = self._get_or_create_topic_token()
         return "bearer %s" % token
 

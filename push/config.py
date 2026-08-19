@@ -1,11 +1,13 @@
-from .apn_handler import TokenCredentials
 from utils import getenv
+
+from .apn_handler import TokenCredentials
 
 
 class PushConfig:
     """
     A class representing the configuration for push notifications.
     """
+
     AUTH_KEY_PATH: str | None = None
     AUTH_KEY_ID: str | None = None
     TEAM_ID: str | None = None
@@ -64,9 +66,7 @@ class PushConfig:
             return True
         if value in ("0", "false", "no", "off", ""):
             return False
-        raise ValueError(
-            f"APNS_USE_SANDBOX must be a boolean value, got {value!r}"
-        )
+        raise ValueError(f"APNS_USE_SANDBOX must be a boolean value, got {value!r}")
 
     @classmethod
     def get_token_credentials(cls) -> TokenCredentials:

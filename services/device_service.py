@@ -1,10 +1,11 @@
-from entities import DeviceEntity
-from models import Device
+from fastapi import Depends
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
-from database import db_session
 from sqlalchemy.orm import Session
-from fastapi import Depends
+
+from database import db_session
+from entities import DeviceEntity
+from models import Device
 
 
 class DeviceService:
@@ -48,7 +49,13 @@ class DeviceService:
             select(DeviceEntity).where(DeviceEntity.token == device.token)
         )
         if device_entity:
-            for field in ("name", "systemName", "systemVersion", "model", "localizedModel"):
+            for field in (
+                "name",
+                "systemName",
+                "systemVersion",
+                "model",
+                "localizedModel",
+            ):
                 value = getattr(device, field)
                 if value is not None:
                     setattr(device_entity, field, value)
@@ -85,7 +92,9 @@ class DeviceService:
         """
         if not tokens:
             return
-        self._session.execute(delete(DeviceEntity).where(DeviceEntity.token.in_(tokens)))
+        self._session.execute(
+            delete(DeviceEntity).where(DeviceEntity.token.in_(tokens))
+        )
         self._session.commit()
 
     def clear_registered_devices(self) -> None:

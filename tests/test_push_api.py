@@ -1,15 +1,14 @@
 """Tests for the /push endpoints."""
 
+import httpx
+from fastapi.testclient import TestClient
+from sqlalchemy.exc import OperationalError
+
 import database
 import push.handler
 from main import app
 from push import get_push_handler
 from services import DeviceService
-
-import httpx
-
-from sqlalchemy.exc import OperationalError
-from fastapi.testclient import TestClient
 
 
 def override_handler(handler):
@@ -40,8 +39,14 @@ def test_send_push_removes_unregistered_devices(client, apns_handler_factory):
         apns_handler_factory(
             {
                 "good-token": (200, {}),
-                "stale-token": (410, {"reason": "Unregistered", "timestamp": "1700000000"}),
-                "stale-token-2": (410, {"reason": "Unregistered", "timestamp": "1700000000"}),
+                "stale-token": (
+                    410,
+                    {"reason": "Unregistered", "timestamp": "1700000000"},
+                ),
+                "stale-token-2": (
+                    410,
+                    {"reason": "Unregistered", "timestamp": "1700000000"},
+                ),
             }
         )
     )
@@ -51,7 +56,10 @@ def test_send_push_removes_unregistered_devices(client, apns_handler_factory):
 
     client.post(
         "/push/send",
-        json={"recipients": ["good-token", "stale-token", "stale-token-2"], "body": "hello"},
+        json={
+            "recipients": ["good-token", "stale-token", "stale-token-2"],
+            "body": "hello",
+        },
     )
 
     remaining = {device["token"] for device in client.get("/devices/all").json()}
@@ -61,7 +69,9 @@ def test_send_push_removes_unregistered_devices(client, apns_handler_factory):
 def test_push_handler_is_shared_across_requests(monkeypatch):
     transport = httpx.MockTransport(lambda request: httpx.Response(200))
     real_client = httpx.Client
-    monkeypatch.setattr(httpx, "Client", lambda **kwargs: real_client(transport=transport))
+    monkeypatch.setattr(
+        httpx, "Client", lambda **kwargs: real_client(transport=transport)
+    )
     monkeypatch.setattr(push.handler, "_shared_handler", None)
 
     first = get_push_handler()
@@ -92,7 +102,9 @@ def test_shutdown_closes_shared_push_handler(monkeypatch, test_engine):
     assert push.handler._shared_handler is None
 
 
-def test_send_push_with_no_recipients_returns_empty_results(client, apns_handler_factory):
+def test_send_push_with_no_recipients_returns_empty_results(
+    client, apns_handler_factory
+):
     override_handler(apns_handler_factory({}))
 
     response = client.post("/push/send", json={"recipients": [], "body": "hello"})
@@ -106,7 +118,10 @@ def test_prune_failure_does_not_discard_push_results(client, apns_handler_factor
         apns_handler_factory(
             {
                 "good-token": (200, {}),
-                "stale-token": (410, {"reason": "Unregistered", "timestamp": "1700000000"}),
+                "stale-token": (
+                    410,
+                    {"reason": "Unregistered", "timestamp": "1700000000"},
+                ),
             }
         )
     )

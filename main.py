@@ -1,5 +1,5 @@
 """
-This file is the entry point for the FastAPI application. 
+This file is the entry point for the FastAPI application.
 It configures middleware, adds sub-routers, and defines application-level health checks.
 """
 
@@ -50,6 +50,8 @@ async def health():
 async def root():
     return {"message": "Hello World"}
 
+
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app)

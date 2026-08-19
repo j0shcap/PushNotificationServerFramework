@@ -1,23 +1,24 @@
-from typing import Any, Dict, List, Optional, Union, Iterable
+from collections.abc import Iterable
+from typing import Any
 
 MAX_PAYLOAD_SIZE = 4096
 
 
-class PayloadAlert(object):
+class PayloadAlert:
     def __init__(
         self,
-        title: Optional[str] = None,
-        title_localized_key: Optional[str] = None,
-        title_localized_args: Optional[List[str]] = None,
-        subtitle: Optional[str] = None,
-        subtitle_localized_key: Optional[str] = None,
-        subtitle_localized_args: Optional[List[str]] = None,
-        body: Optional[str] = None,
-        body_localized_key: Optional[str] = None,
-        body_localized_args: Optional[List[str]] = None,
-        action_localized_key: Optional[str] = None,
-        action: Optional[str] = None,
-        launch_image: Optional[str] = None,
+        title: str | None = None,
+        title_localized_key: str | None = None,
+        title_localized_args: list[str] | None = None,
+        subtitle: str | None = None,
+        subtitle_localized_key: str | None = None,
+        subtitle_localized_args: list[str] | None = None,
+        body: str | None = None,
+        body_localized_key: str | None = None,
+        body_localized_args: list[str] | None = None,
+        action_localized_key: str | None = None,
+        action: str | None = None,
+        launch_image: str | None = None,
     ) -> None:
         self.title = title
         self.title_localized_key = title_localized_key
@@ -32,7 +33,7 @@ class PayloadAlert(object):
         self.action = action
         self.launch_image = launch_image
 
-    def dict(self) -> Dict[str, Any]:
+    def dict(self) -> dict[str, Any]:
         result = {}  # type: Dict[str, Any]
 
         if self.title:
@@ -67,16 +68,16 @@ class PayloadAlert(object):
         return result
 
 
-class Payload(object):
+class Payload:
     def __init__(
         self,
-        alert: Union[PayloadAlert, str, None] = None,
-        badge: Optional[int] = None,
-        sound: Optional[str] = None,
-        category: Optional[str] = None,
-        url_args: Optional[Iterable[str]] = None,
-        custom: Optional[Dict[str, Any]] = None,
-        thread_id: Optional[str] = None,
+        alert: PayloadAlert | str | None = None,
+        badge: int | None = None,
+        sound: str | None = None,
+        category: str | None = None,
+        url_args: Iterable[str] | None = None,
+        custom: dict[str, Any] | None = None,
+        thread_id: str | None = None,
         content_available: bool = False,
         mutable_content: bool = False,
     ) -> None:
@@ -90,7 +91,7 @@ class Payload(object):
         self.mutable_content = mutable_content
         self.thread_id = thread_id
 
-    def dict(self) -> Dict[str, Any]:
+    def dict(self) -> dict[str, Any]:
         result = {"aps": {}}  # type: Dict[str, Any]
 
         if self.alert is not None:

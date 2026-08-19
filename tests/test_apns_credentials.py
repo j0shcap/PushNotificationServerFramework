@@ -1,9 +1,9 @@
 """Tests for APNs token credentials."""
 
 from pathlib import Path
-from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
 import jwt
+from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
 from push.apn_handler import TokenCredentials
 

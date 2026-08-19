@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+
 from models import Device
 from services import DeviceService
 

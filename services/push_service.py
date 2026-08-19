@@ -1,9 +1,10 @@
 import logging
 
 from fastapi import Depends
+from sqlalchemy.exc import SQLAlchemyError
+
 from models import Message
 from push import PushHandler, get_push_handler
-from sqlalchemy.exc import SQLAlchemyError
 
 from .device_service import DeviceService
 

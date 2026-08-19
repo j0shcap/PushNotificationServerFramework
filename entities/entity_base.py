@@ -5,4 +5,3 @@ class EntityBase(DeclarativeBase):
     """
     Base class for all entities in the push notification framework.
     """
-    pass
