@@ -81,3 +81,40 @@ def test_http_client_is_reused_across_sends(monkeypatch):
     client.send_notification("token-2", Payload(alert="b"), topic="com.example.test")
 
     assert len(constructions) == 1
+
+
+def make_raw_client(monkeypatch, status_code, text):
+    transport = httpx.MockTransport(
+        lambda request: httpx.Response(status_code, text=text)
+    )
+    real_client = httpx.Client
+    monkeypatch.setattr(httpx, "Client", lambda **kwargs: real_client(transport=transport))
+    credentials = TokenCredentials(
+        auth_key_path=KEY_PATH, auth_key_id="TESTKEY123", team_id="TESTTEAM12"
+    )
+    return APNsClient(credentials=credentials)
+
+
+def test_410_without_json_body_still_reports_unregistered(monkeypatch):
+    client = make_raw_client(monkeypatch, 410, "gone")
+
+    with pytest.raises(Unregistered):
+        client.send_notification("stale-token", Payload(alert="hello"), topic="com.example.test")
+
+
+def test_non_json_error_body_is_not_leaked_as_reason(monkeypatch):
+    client = make_raw_client(monkeypatch, 502, "<html>Bad Gateway from some proxy</html>")
+
+    with pytest.raises(APNsException) as exc_info:
+        client.send_notification("device-token", Payload(alert="hello"), topic="com.example.test")
+
+    assert "<html>" not in str(exc_info.value)
+
+
+def test_raised_exception_message_carries_the_reason(monkeypatch):
+    client = make_client(monkeypatch, 400, {"reason": "SomeFutureReason"})
+
+    with pytest.raises(APNsException) as exc_info:
+        client.send_notification("device-token", Payload(alert="hello"), topic="com.example.test")
+
+    assert "SomeFutureReason" in str(exc_info.value)

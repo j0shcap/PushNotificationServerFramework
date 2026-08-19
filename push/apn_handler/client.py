@@ -107,7 +107,7 @@ class APNsClient(object):
         )
 
         if status != 200:
-            raise exception_class_for_reason(reason)
+            raise exception_class_for_reason(reason)(reason)
 
     def send_notification_sync(
         self,
@@ -176,13 +176,20 @@ class APNsClient(object):
 
     @staticmethod
     def _extract_reason(response: httpx.Response) -> str:
-        """Extract the 'reason' field from an APNs error response body."""
+        """Extract the 'reason' field from an APNs error response body.
+
+        Bodies without a parseable reason (e.g. from an intermediary proxy) are
+        never returned verbatim: a 410 is always Unregistered per the APNs spec,
+        and anything else is reduced to a generic status marker.
+        """
         if response.status_code == 200:
             return ""
         try:
             return response.json()["reason"]
         except (ValueError, KeyError):
-            return response.text
+            if response.status_code == 410:
+                return "Unregistered"
+            return f"HTTPError{response.status_code}"
 
     def get_notification_result(
         self, status: int, reason: str
