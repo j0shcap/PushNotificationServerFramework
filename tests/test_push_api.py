@@ -52,8 +52,13 @@ def test_send_push_removes_unregistered_devices(client, apns_handler_factory):
 
 
 def test_push_handler_is_shared_across_requests(monkeypatch):
+    import httpx
+
     import push.handler
 
+    transport = httpx.MockTransport(lambda request: httpx.Response(200))
+    real_client = httpx.Client
+    monkeypatch.setattr(httpx, "Client", lambda **kwargs: real_client(transport=transport))
     monkeypatch.setattr(push.handler, "_shared_handler", None)
 
     first = get_push_handler()
