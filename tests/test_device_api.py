@@ -8,6 +8,8 @@ def test_register_device_returns_device_with_id(client):
     body = response.json()
     assert body["token"] == "abc123"
     assert body["id"] is not None
+    assert body["created_at"] is not None
+    assert body["updated_at"] is not None
 
 
 def test_register_device_stores_optional_fields(client):
@@ -82,3 +84,32 @@ def test_reregistering_with_only_token_preserves_stored_fields(client):
     assert response.status_code == 200
     assert response.json()["name"] == "Josh's iPhone"
     assert response.json()["systemVersion"] == "17.0"
+
+
+def test_concurrent_registration_race_falls_back_to_update(test_engine):
+    from sqlalchemy.orm import Session
+
+    from models import Device
+    from services import DeviceService
+
+    with Session(test_engine) as session:
+        DeviceService(session=session).register_device(Device(token="abc123", name="winner"))
+
+    with Session(test_engine) as session:
+        service = DeviceService(session=session)
+        real_scalar = session.scalar
+        calls = []
+
+        def stale_scalar(*args, **kwargs):
+            calls.append(1)
+            if len(calls) == 1:
+                return None
+            return real_scalar(*args, **kwargs)
+
+        session.scalar = stale_scalar
+        result = service.register_device(Device(token="abc123", name="loser"))
+
+    assert result.name == "loser"
+    with Session(test_engine) as session:
+        devices = DeviceService(session=session).get_registered_devices()
+    assert len(devices) == 1

@@ -1,6 +1,7 @@
 from entities import DeviceEntity
 from models import Device
 from sqlalchemy import delete, select
+from sqlalchemy.exc import IntegrityError
 from database import db_session
 from sqlalchemy.orm import Session
 from fastapi import Depends
@@ -51,10 +52,18 @@ class DeviceService:
                 value = getattr(device, field)
                 if value is not None:
                     setattr(device_entity, field, value)
-        else:
-            device_entity = DeviceEntity.from_model(device)
-            self._session.add(device_entity)
-        self._session.commit()
+            self._session.commit()
+            return device_entity.to_model()
+
+        device_entity = DeviceEntity.from_model(device)
+        self._session.add(device_entity)
+        try:
+            self._session.commit()
+        except IntegrityError:
+            # A concurrent request registered the same token between our
+            # select and commit; retry to update the row that won the race.
+            self._session.rollback()
+            return self.register_device(device)
         return device_entity.to_model()
 
     def get_registered_devices(self) -> list[Device]:
