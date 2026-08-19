@@ -1,4 +1,4 @@
-from .apn_handler import APNsClient, Payload, TokenCredentials
+from .apn_handler import APNsClient, Notification, Payload, TokenCredentials
 from .config import PushConfig
 
 
@@ -46,19 +46,26 @@ class PushHandler:
         body: str,
         sound: str = "default",
         badge: int = 1,
-    ) -> None:
+    ) -> dict[str, str]:
         """
         Sends a push notification to multiple device tokens.
+
+        A failure for one token does not prevent delivery to the others.
 
         Args:
             to_device_tokens (list[str]): A list of device tokens to send the push notification to.
             body (str): The message body of the push notification.
             sound (str, optional): The name of the sound to play when the push notification is received. Defaults to "default".
             badge (int, optional): The number to display as the badge of the app icon. Defaults to 1.
+
+        Returns:
+            dict[str, str]: A mapping of each device token to "Success" or the
+                APNs failure reason.
         """
-        [
-            self.send_push(
-                to_device_token=to_device_token, body=body, sound=sound, badge=badge
-            )
-            for to_device_token in to_device_tokens
+        payload: Payload = Payload(alert=body, sound=sound, badge=badge)
+        notifications = [
+            Notification(token=token, payload=payload) for token in to_device_tokens
         ]
+        return self.connection.send_notification_batch(
+            notifications, topic=PushConfig.get_apns_app_bundle_id()
+        )
