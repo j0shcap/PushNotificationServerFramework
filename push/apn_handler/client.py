@@ -113,7 +113,7 @@ class APNsClient(object):
         expiration: Optional[int] = None,
         collapse_id: Optional[str] = None,
         push_type: Optional[NotificationType] = None,
-    ) -> int:
+    ) -> Tuple[int, str]:
         json_str = json.dumps(
             notification.dict(),
             cls=self.__json_encoder,
@@ -165,8 +165,18 @@ class APNsClient(object):
             headers["apns-collapse-id"] = collapse_id
 
         url = f"https://{self.__server}:{self.__port}/3/device/{token_hex}"
-        response = client.post(url, headers=headers, data=json_payload)
-        return response.status_code, response.text
+        response = client.post(url, headers=headers, content=json_payload)
+        return response.status_code, self._extract_reason(response)
+
+    @staticmethod
+    def _extract_reason(response: httpx.Response) -> str:
+        """Extract the 'reason' field from an APNs error response body."""
+        if response.status_code == 200:
+            return ""
+        try:
+            return response.json()["reason"]
+        except (ValueError, KeyError):
+            return response.text
 
     def get_notification_result(
         self, status: int, reason: str

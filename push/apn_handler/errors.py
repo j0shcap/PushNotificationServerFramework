@@ -197,6 +197,11 @@ class Shutdown(APNsException):
 
 
 def exception_class_for_reason(reason: str) -> Type[APNsException]:
+    """Map an APNs 'reason' string to its exception class.
+
+    Falls back to APNsException for reasons this module does not know about,
+    so new reasons introduced by Apple do not break error handling.
+    """
     return {
         "BadCollapseId": BadCollapseId,
         "BadDeviceToken": BadDeviceToken,
@@ -226,4 +231,4 @@ def exception_class_for_reason(reason: str) -> Type[APNsException]:
         "InternalServerError": InternalServerError,
         "ServiceUnavailable": ServiceUnavailable,
         "Shutdown": Shutdown,
-    }[reason]
+    }.get(reason, APNsException)
