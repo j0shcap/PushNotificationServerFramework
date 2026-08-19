@@ -118,3 +118,21 @@ def test_raised_exception_message_carries_the_reason(monkeypatch):
         client.send_notification("device-token", Payload(alert="hello"), topic="com.example.test")
 
     assert "SomeFutureReason" in str(exc_info.value)
+
+
+def test_json_error_body_without_reason_key_maps_to_status_marker(monkeypatch):
+    client = make_client(monkeypatch, 400, {"timestamp": "1700000000"})
+
+    with pytest.raises(APNsException) as exc_info:
+        client.send_notification("device-token", Payload(alert="hello"), topic="com.example.test")
+
+    assert "HTTPError400" in str(exc_info.value)
+
+
+def test_non_dict_json_error_body_maps_to_status_marker(monkeypatch):
+    client = make_raw_client(monkeypatch, 503, '"Service Unavailable"')
+
+    with pytest.raises(APNsException) as exc_info:
+        client.send_notification("device-token", Payload(alert="hello"), topic="com.example.test")
+
+    assert "HTTPError503" in str(exc_info.value)

@@ -88,3 +88,41 @@ def test_shutdown_closes_shared_push_handler(monkeypatch, test_engine):
 
     assert clients and all(client.is_closed for client in clients)
     assert push.handler._shared_handler is None
+
+
+def test_send_push_with_no_recipients_returns_empty_results(client, apns_handler_factory):
+    override_handler(apns_handler_factory({}))
+
+    response = client.post("/push/send", json={"recipients": [], "body": "hello"})
+
+    assert response.status_code == 200
+    assert response.json() == {}
+
+
+def test_prune_failure_does_not_discard_push_results(client, apns_handler_factory):
+    from sqlalchemy.exc import OperationalError
+
+    from services import DeviceService
+
+    override_handler(
+        apns_handler_factory(
+            {
+                "good-token": (200, {}),
+                "stale-token": (410, {"reason": "Unregistered", "timestamp": "1700000000"}),
+            }
+        )
+    )
+
+    class FailingDeviceService(DeviceService):
+        def remove_devices(self, tokens):
+            raise OperationalError("DELETE", {}, Exception("db gone"))
+
+    app.dependency_overrides[DeviceService] = FailingDeviceService
+
+    response = client.post(
+        "/push/send",
+        json={"recipients": ["good-token", "stale-token"], "body": "hello"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"good-token": "Success", "stale-token": "Unregistered"}

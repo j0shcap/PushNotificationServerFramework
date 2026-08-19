@@ -183,7 +183,12 @@ class APNsClient(object):
             return ""
         try:
             return response.json()["reason"]
-        except (ValueError, KeyError):
+        except (ValueError, KeyError, TypeError):
+            logger.warning(
+                "Unparseable APNs response body (status %d): %s",
+                response.status_code,
+                response.text[:200],
+            )
             if response.status_code == 410:
                 return "Unregistered"
             return f"HTTPError{response.status_code}"
@@ -231,7 +236,7 @@ class APNsClient(object):
                 )
             except httpx.HTTPError as error:
                 logger.warning(
-                    "Network error sending to token %s: %s", next_notification.token, error
+                    "Network error sending to token %s: %r", next_notification.token, error
                 )
                 results[next_notification.token] = "ConnectionFailed"
                 continue

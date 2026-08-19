@@ -1,8 +1,13 @@
+import logging
+
 from fastapi import Depends
 from models import Message
 from push import PushHandler, get_push_handler
+from sqlalchemy.exc import SQLAlchemyError
 
 from .device_service import DeviceService
+
+logger = logging.getLogger(__name__)
 
 
 class PushService:
@@ -52,5 +57,15 @@ class PushService:
         stale_tokens = [
             token for token, result in results.items() if result == "Unregistered"
         ]
-        self.deviceService.remove_devices(stale_tokens)
+        if stale_tokens:
+            # Pruning is best-effort cleanup; the notifications are already
+            # sent, so a database failure here must not turn the completed
+            # push into an apparent failure (a client retry would re-send).
+            try:
+                self.deviceService.remove_devices(stale_tokens)
+                logger.info("Removed unregistered device tokens: %s", stale_tokens)
+            except SQLAlchemyError:
+                logger.exception(
+                    "Failed to remove unregistered device tokens: %s", stale_tokens
+                )
         return results

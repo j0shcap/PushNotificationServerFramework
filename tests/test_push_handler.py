@@ -90,3 +90,23 @@ def test_duplicate_recipients_are_sent_only_once(monkeypatch):
 
     assert len(requests) == 2
     assert results == {"token-1": "Success", "token-2": "Success"}
+
+
+def test_sandbox_flag_tolerates_surrounding_whitespace(monkeypatch):
+    monkeypatch.setenv("APNS_USE_SANDBOX", "true ")
+    handler, requests = make_recording_handler(monkeypatch)
+
+    handler.send_push("device-token", body="hello")
+
+    assert requests[0].url.host == "api.development.push.apple.com"
+
+
+def test_unrecognized_sandbox_value_is_rejected(monkeypatch):
+    import pytest
+
+    from push import PushHandler
+
+    monkeypatch.setenv("APNS_USE_SANDBOX", "banana")
+
+    with pytest.raises(ValueError):
+        PushHandler()
