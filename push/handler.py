@@ -65,7 +65,8 @@ class PushHandler:
         """
         payload: Payload = Payload(alert=body, sound=sound, badge=badge)
         notifications = [
-            Notification(token=token, payload=payload) for token in to_device_tokens
+            Notification(token=token, payload=payload)
+            for token in dict.fromkeys(to_device_tokens)
         ]
         return self.connection.send_notification_batch(
             notifications, topic=PushConfig.get_apns_app_bundle_id()

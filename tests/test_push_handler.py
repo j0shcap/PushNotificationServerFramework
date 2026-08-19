@@ -79,3 +79,14 @@ def test_network_failure_for_one_token_does_not_block_others(monkeypatch):
     assert results["good-token"] == "Success"
     assert results["unreachable-token"] == "ConnectionFailed"
     assert results["other-token"] == "Success"
+
+
+def test_duplicate_recipients_are_sent_only_once(monkeypatch):
+    handler, requests = make_recording_handler(monkeypatch)
+
+    results = handler.send_multiple_push(
+        to_device_tokens=["token-1", "token-1", "token-2"], body="hello"
+    )
+
+    assert len(requests) == 2
+    assert results == {"token-1": "Success", "token-2": "Success"}
