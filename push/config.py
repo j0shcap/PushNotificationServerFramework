@@ -48,6 +48,16 @@ class PushConfig:
         return cls.APNS_APP_BUNDLE_ID
 
     @classmethod
+    def get_use_sandbox(cls) -> bool:
+        """
+        Returns whether to target the APNs sandbox environment.
+
+        Controlled by the APNS_USE_SANDBOX environment variable; defaults to False.
+        Development builds get sandbox tokens, which the production server rejects.
+        """
+        return getenv("APNS_USE_SANDBOX", "false").lower() in ("1", "true", "yes")
+
+    @classmethod
     def get_token_credentials(cls) -> TokenCredentials:
         """
         Returns the token credentials for APNS.

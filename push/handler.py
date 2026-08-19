@@ -20,7 +20,8 @@ class PushHandler:
     def __init__(self):
         self.token_credentials: TokenCredentials = PushConfig.get_token_credentials()
         self.connection: APNsClient = APNsClient(
-            credentials=self.token_credentials, use_sandbox=False
+            credentials=self.token_credentials,
+            use_sandbox=PushConfig.get_use_sandbox(),
         )
 
     def send_push(
