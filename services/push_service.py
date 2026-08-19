@@ -49,7 +49,8 @@ class PushService:
         results = self.handler.send_multiple_push(
             to_device_tokens=message.recipients, body=message.body
         )
-        for token, result in results.items():
-            if result == "Unregistered":
-                self.deviceService.remove_device(token)
+        stale_tokens = [
+            token for token, result in results.items() if result == "Unregistered"
+        ]
+        self.deviceService.remove_devices(stale_tokens)
         return results

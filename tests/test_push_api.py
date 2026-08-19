@@ -34,15 +34,17 @@ def test_send_push_removes_unregistered_devices(client, apns_handler_factory):
             {
                 "good-token": (200, {}),
                 "stale-token": (410, {"reason": "Unregistered", "timestamp": "1700000000"}),
+                "stale-token-2": (410, {"reason": "Unregistered", "timestamp": "1700000000"}),
             }
         )
     )
     client.post("/devices/register", json={"token": "good-token"})
     client.post("/devices/register", json={"token": "stale-token"})
+    client.post("/devices/register", json={"token": "stale-token-2"})
 
     client.post(
         "/push/send",
-        json={"recipients": ["good-token", "stale-token"], "body": "hello"},
+        json={"recipients": ["good-token", "stale-token", "stale-token-2"], "body": "hello"},
     )
 
     remaining = {device["token"] for device in client.get("/devices/all").json()}
