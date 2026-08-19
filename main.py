@@ -3,11 +3,23 @@ This file is the entry point for the FastAPI application.
 It configures middleware, adds sub-routers, and defines application-level health checks.
 """
 
+from contextlib import asynccontextmanager
+
 from fastapi import APIRouter, FastAPI
-from apis import devices, push
 from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI()
+import database
+from apis import devices, push
+from entities import EntityBase
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    EntityBase.metadata.create_all(database.engine)
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 # Configure as needed
 app.add_middleware(
