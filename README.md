@@ -42,6 +42,8 @@ To install this repository, follow these steps:
 ## Configuration
 Configure the application by creating an .env file based off the template. Set the necessary parameters like database connection parameters and APNs identifiers.
 
+Set `APNS_USE_SANDBOX=true` when testing with development builds; their device tokens are only valid against the APNs sandbox environment.
+
 ## Running the Server
 To start the server, run the following command:
 ```bash
@@ -87,6 +89,14 @@ To implement push notifications in an iOS application, follow the steps below:
     "body": "notification_body"
   }
   ```
+- **Response**: A mapping of each device token to `"Success"` or the APNs failure reason. A failure for one token does not prevent delivery to the others.
+  ```json
+  {
+    "device_token_1": "Success",
+    "device_token_2": "Unregistered"
+  }
+  ```
+  Devices whose tokens APNs reports as `Unregistered` are automatically removed from the database.
 
 ## Design Notes
 

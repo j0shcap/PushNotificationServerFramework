@@ -24,12 +24,9 @@ class NotificationType(Enum):
     MDM = "mdm"
 
 
-RequestStream = collections.namedtuple("RequestStream", ["token", "status", "reason"])
 Notification = collections.namedtuple("Notification", ["token", "payload"])
 
 DEFAULT_APNS_PRIORITY = NotificationPriority.Immediate
-CONCURRENT_STREAMS_SAFETY_MAXIMUM = 1000
-MAX_CONNECTION_RETRIES = 3
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +64,13 @@ class APNsClient(object):
 
         self.__json_encoder = json_encoder
 
+        # APNs expects providers to keep connections open across requests;
+        # opening one per notification is treated as abusive by Apple.
+        ssl_context = self.__credentials.ssl_context
+        self.__http_client = httpx.Client(
+            http2=True, verify=ssl_context if ssl_context else True
+        )
+
     def _init_connection(
         self,
         use_sandbox: bool,
@@ -89,19 +93,18 @@ class APNsClient(object):
         expiration: Optional[int] = None,
         collapse_id: Optional[str] = None,
     ) -> None:
-        with httpx.Client(http2=True) as client:
-            status, reason = self.send_notification_sync(
-                token_hex,
-                notification,
-                client,
-                topic,
-                priority,
-                expiration,
-                collapse_id,
-            )
+        status, reason = self.send_notification_sync(
+            token_hex,
+            notification,
+            self.__http_client,
+            topic,
+            priority,
+            expiration,
+            collapse_id,
+        )
 
         if status != 200:
-            raise exception_class_for_reason(reason)
+            raise exception_class_for_reason(reason)(reason)
 
     def send_notification_sync(
         self,
@@ -113,7 +116,7 @@ class APNsClient(object):
         expiration: Optional[int] = None,
         collapse_id: Optional[str] = None,
         push_type: Optional[NotificationType] = None,
-    ) -> int:
+    ) -> Tuple[int, str]:
         json_str = json.dumps(
             notification.dict(),
             cls=self.__json_encoder,
@@ -165,12 +168,32 @@ class APNsClient(object):
             headers["apns-collapse-id"] = collapse_id
 
         url = f"https://{self.__server}:{self.__port}/3/device/{token_hex}"
-        response = client.post(url, headers=headers, data=json_payload)
-        return response.status_code, response.text
+        response = client.post(url, headers=headers, content=json_payload)
+        return response.status_code, self._extract_reason(response)
 
-    def get_notification_result(
-        self, status: int, reason: str
-    ) -> Union[str, Tuple[str, str]]:
+    @staticmethod
+    def _extract_reason(response: httpx.Response) -> str:
+        """Extract the 'reason' field from an APNs error response body.
+
+        Bodies without a parseable reason (e.g. from an intermediary proxy) are
+        never returned verbatim: a 410 is always Unregistered per the APNs spec,
+        and anything else is reduced to a generic status marker.
+        """
+        if response.status_code == 200:
+            return ""
+        try:
+            return response.json()["reason"]
+        except (ValueError, KeyError, TypeError):
+            logger.warning(
+                "Unparseable APNs response body (status %d): %s",
+                response.status_code,
+                response.text[:200],
+            )
+            if response.status_code == 410:
+                return "Unregistered"
+            return f"HTTPError{response.status_code}"
+
+    def get_notification_result(self, status: int, reason: str) -> str:
         """
         Get result for specified stream
         The function returns: 'Success' or 'failure reason'
@@ -188,7 +211,7 @@ class APNsClient(object):
         expiration: Optional[int] = None,
         collapse_id: Optional[str] = None,
         push_type: Optional[NotificationType] = None,
-    ) -> Dict[str, Union[str, Tuple[str, str]]]:
+    ) -> Dict[str, str]:
         """
         Send a notification to a list of tokens in batch.
 
@@ -198,30 +221,31 @@ class APNsClient(object):
         """
         results = {}
 
-        # Loop over notifications
-        with httpx.Client(http2=True, verify=self.__credentials.ssl_context) as client:
-            for next_notification in notifications:
-                logger.info("Sending to token %s", next_notification.token)
+        for next_notification in notifications:
+            logger.info("Sending to token %s", next_notification.token)
+            try:
                 status, reason = self.send_notification_sync(
                     next_notification.token,
                     next_notification.payload,
-                    client,
+                    self.__http_client,
                     topic,
                     priority,
                     expiration,
                     collapse_id,
                     push_type,
                 )
-                result = self.get_notification_result(status, reason)
-                logger.info("Got response for %s: %s", next_notification.token, result)
-                results[next_notification.token] = result
+            except httpx.HTTPError as error:
+                logger.warning(
+                    "Network error sending to token %s: %r", next_notification.token, error
+                )
+                results[next_notification.token] = "ConnectionFailed"
+                continue
+            result = self.get_notification_result(status, reason)
+            logger.info("Got response for %s: %s", next_notification.token, result)
+            results[next_notification.token] = result
 
         return results
 
-    def connect(self) -> None:
-        """
-        Establish a connection to APNs. If already connected, the function does nothing. If the
-        connection fails, the function retries up to MAX_CONNECTION_RETRIES times.
-        """
-        # Not needed for HTTPX
-        logger.info("APNsClient.connect called")
+    def close(self) -> None:
+        """Close the underlying HTTP connection to APNs."""
+        self.__http_client.close()
