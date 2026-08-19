@@ -66,6 +66,16 @@ class DeviceService:
         devices = self._session.execute(select(DeviceEntity)).scalars().all()
         return [device.to_model() for device in devices]
 
+    def remove_device(self, token: str) -> None:
+        """
+        Remove the device with the given token, if it exists.
+
+        Args:
+            token (str): The device token to remove.
+        """
+        self._session.execute(delete(DeviceEntity).where(DeviceEntity.token == token))
+        self._session.commit()
+
     def clear_registered_devices(self) -> None:
         """
         Clear all registered devices.

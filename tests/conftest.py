@@ -21,6 +21,7 @@ os.environ.setdefault("APNS_TEAM_ID", "TESTTEAM12")
 os.environ.setdefault("APNS_APP_BUNDLE_ID", "com.example.test")
 os.environ.setdefault("APNS_AUTH_KEY_PATH", str(FIXTURES_DIR / "apns_test_key.p8"))
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -31,6 +32,7 @@ import database
 from database import db_session
 from entities import EntityBase
 from main import app
+from push import PushHandler
 
 
 @pytest.fixture
@@ -59,3 +61,23 @@ def client(test_engine, monkeypatch):
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def apns_handler_factory(monkeypatch):
+    """Build PushHandlers whose APNs response depends on the device token."""
+
+    def factory(responses_by_token):
+        def route(request):
+            token = request.url.path.rsplit("/", 1)[-1]
+            status_code, body = responses_by_token[token]
+            return httpx.Response(status_code, json=body)
+
+        transport = httpx.MockTransport(route)
+        real_client = httpx.Client
+        monkeypatch.setattr(
+            httpx, "Client", lambda **kwargs: real_client(transport=transport)
+        )
+        return PushHandler()
+
+    return factory
