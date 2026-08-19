@@ -1,6 +1,6 @@
 from entities import DeviceEntity
 from models import Device
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from database import db_session
 from sqlalchemy.orm import Session
 from fastapi import Depends
@@ -59,5 +59,5 @@ class DeviceService:
 
         This method deletes all registered devices from the database.
         """
-        self._session.execute(select(DeviceEntity)).delete()
+        self._session.execute(delete(DeviceEntity))
         self._session.commit()

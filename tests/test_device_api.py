@@ -43,3 +43,13 @@ def test_health_check(client):
     response = client.get("/health")
 
     assert response.status_code == 200
+
+
+def test_clear_removes_all_registered_devices(client):
+    client.post("/devices/register", json={"token": "token-1"})
+    client.post("/devices/register", json={"token": "token-2"})
+
+    response = client.get("/devices/clear")
+
+    assert response.status_code == 200
+    assert client.get("/devices/all").json() == []
