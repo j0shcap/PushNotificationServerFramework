@@ -1,5 +1,10 @@
 """Tests for the /devices endpoints."""
 
+from sqlalchemy.orm import Session
+
+from models import Device
+from services import DeviceService
+
 
 def test_register_device_returns_device_with_id(client):
     response = client.post("/devices/register", json={"token": "abc123"})
@@ -87,11 +92,6 @@ def test_reregistering_with_only_token_preserves_stored_fields(client):
 
 
 def test_concurrent_registration_race_falls_back_to_update(test_engine):
-    from sqlalchemy.orm import Session
-
-    from models import Device
-    from services import DeviceService
-
     with Session(test_engine) as session:
         DeviceService(session=session).register_device(Device(token="abc123", name="winner"))
 

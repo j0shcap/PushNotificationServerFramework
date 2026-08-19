@@ -1,5 +1,10 @@
 """Tests for PushHandler, with the HTTP layer mocked per device token."""
 
+import httpx
+import pytest
+
+from push import PushHandler
+
 
 def test_send_multiple_push_returns_result_per_token(apns_handler_factory):
     handler = apns_handler_factory(
@@ -22,10 +27,6 @@ def test_send_multiple_push_returns_result_per_token(apns_handler_factory):
 
 
 def make_recording_handler(monkeypatch):
-    import httpx
-
-    from push import PushHandler
-
     requests = []
 
     def route(request):
@@ -57,10 +58,6 @@ def test_production_server_is_default(monkeypatch):
 
 
 def test_network_failure_for_one_token_does_not_block_others(monkeypatch):
-    import httpx
-
-    from push import PushHandler
-
     def route(request):
         token = request.url.path.rsplit("/", 1)[-1]
         if token == "unreachable-token":
@@ -102,10 +99,6 @@ def test_sandbox_flag_tolerates_surrounding_whitespace(monkeypatch):
 
 
 def test_unrecognized_sandbox_value_is_rejected(monkeypatch):
-    import pytest
-
-    from push import PushHandler
-
     monkeypatch.setenv("APNS_USE_SANDBOX", "banana")
 
     with pytest.raises(ValueError):

@@ -1,6 +1,7 @@
 """Tests for APNs token credentials."""
 
 from pathlib import Path
+from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
 import jwt
 
@@ -27,8 +28,6 @@ def test_authorization_header_contains_signed_es256_jwt():
     unverified_header = jwt.get_unverified_header(token)
     assert unverified_header["alg"] == "ES256"
     assert unverified_header["kid"] == "TESTKEY123"
-
-    from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
     with open(KEY_PATH, "rb") as key_file:
         public_key = load_pem_private_key(key_file.read(), password=None).public_key()

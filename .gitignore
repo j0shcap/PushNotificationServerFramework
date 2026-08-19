@@ -9,6 +9,7 @@ venv/
 
 # Tooling
 .pytest_cache/
+.coverage
 
 # macOS
 .DS_Store

@@ -1,8 +1,15 @@
 """Tests for the /push endpoints."""
 
+import database
+import push.handler
 from main import app
 from push import get_push_handler
-from push.handler import PushHandler
+from services import DeviceService
+
+import httpx
+
+from sqlalchemy.exc import OperationalError
+from fastapi.testclient import TestClient
 
 
 def override_handler(handler):
@@ -52,10 +59,6 @@ def test_send_push_removes_unregistered_devices(client, apns_handler_factory):
 
 
 def test_push_handler_is_shared_across_requests(monkeypatch):
-    import httpx
-
-    import push.handler
-
     transport = httpx.MockTransport(lambda request: httpx.Response(200))
     real_client = httpx.Client
     monkeypatch.setattr(httpx, "Client", lambda **kwargs: real_client(transport=transport))
@@ -64,17 +67,11 @@ def test_push_handler_is_shared_across_requests(monkeypatch):
     first = get_push_handler()
     second = get_push_handler()
 
-    assert isinstance(first, PushHandler)
+    assert isinstance(first, push.handler.PushHandler)
     assert first is second
 
 
 def test_shutdown_closes_shared_push_handler(monkeypatch, test_engine):
-    import httpx
-    from fastapi.testclient import TestClient
-
-    import database
-    import push.handler
-
     clients = []
     real_client = httpx.Client
     transport = httpx.MockTransport(lambda request: httpx.Response(200))
@@ -105,10 +102,6 @@ def test_send_push_with_no_recipients_returns_empty_results(client, apns_handler
 
 
 def test_prune_failure_does_not_discard_push_results(client, apns_handler_factory):
-    from sqlalchemy.exc import OperationalError
-
-    from services import DeviceService
-
     override_handler(
         apns_handler_factory(
             {
