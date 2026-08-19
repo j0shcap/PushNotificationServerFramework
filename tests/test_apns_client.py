@@ -60,3 +60,24 @@ def test_send_notification_raises_base_exception_for_unknown_reason(monkeypatch)
 
     with pytest.raises(APNsException):
         client.send_notification("device-token", Payload(alert="hello"), topic="com.example.test")
+
+
+def test_http_client_is_reused_across_sends(monkeypatch):
+    constructions = []
+    real_client = httpx.Client
+    transport = httpx.MockTransport(lambda request: httpx.Response(200))
+
+    def counting_client(**kwargs):
+        constructions.append(kwargs)
+        return real_client(transport=transport)
+
+    monkeypatch.setattr(httpx, "Client", counting_client)
+    credentials = TokenCredentials(
+        auth_key_path=KEY_PATH, auth_key_id="TESTKEY123", team_id="TESTTEAM12"
+    )
+    client = APNsClient(credentials=credentials)
+
+    client.send_notification("token-1", Payload(alert="a"), topic="com.example.test")
+    client.send_notification("token-2", Payload(alert="b"), topic="com.example.test")
+
+    assert len(constructions) == 1

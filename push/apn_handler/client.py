@@ -67,6 +67,13 @@ class APNsClient(object):
 
         self.__json_encoder = json_encoder
 
+        # APNs expects providers to keep connections open across requests;
+        # opening one per notification is treated as abusive by Apple.
+        ssl_context = self.__credentials.ssl_context
+        self.__http_client = httpx.Client(
+            http2=True, verify=ssl_context if ssl_context else True
+        )
+
     def _init_connection(
         self,
         use_sandbox: bool,
@@ -89,16 +96,15 @@ class APNsClient(object):
         expiration: Optional[int] = None,
         collapse_id: Optional[str] = None,
     ) -> None:
-        with httpx.Client(http2=True) as client:
-            status, reason = self.send_notification_sync(
-                token_hex,
-                notification,
-                client,
-                topic,
-                priority,
-                expiration,
-                collapse_id,
-            )
+        status, reason = self.send_notification_sync(
+            token_hex,
+            notification,
+            self.__http_client,
+            topic,
+            priority,
+            expiration,
+            collapse_id,
+        )
 
         if status != 200:
             raise exception_class_for_reason(reason)
@@ -208,23 +214,21 @@ class APNsClient(object):
         """
         results = {}
 
-        # Loop over notifications
-        with httpx.Client(http2=True, verify=self.__credentials.ssl_context) as client:
-            for next_notification in notifications:
-                logger.info("Sending to token %s", next_notification.token)
-                status, reason = self.send_notification_sync(
-                    next_notification.token,
-                    next_notification.payload,
-                    client,
-                    topic,
-                    priority,
-                    expiration,
-                    collapse_id,
-                    push_type,
-                )
-                result = self.get_notification_result(status, reason)
-                logger.info("Got response for %s: %s", next_notification.token, result)
-                results[next_notification.token] = result
+        for next_notification in notifications:
+            logger.info("Sending to token %s", next_notification.token)
+            status, reason = self.send_notification_sync(
+                next_notification.token,
+                next_notification.payload,
+                self.__http_client,
+                topic,
+                priority,
+                expiration,
+                collapse_id,
+                push_type,
+            )
+            result = self.get_notification_result(status, reason)
+            logger.info("Got response for %s: %s", next_notification.token, result)
+            results[next_notification.token] = result
 
         return results
 
@@ -235,3 +239,7 @@ class APNsClient(object):
         """
         # Not needed for HTTPX
         logger.info("APNsClient.connect called")
+
+    def close(self) -> None:
+        """Close the underlying HTTP connection to APNs."""
+        self.__http_client.close()
