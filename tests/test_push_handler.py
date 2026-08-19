@@ -54,3 +54,28 @@ def test_production_server_is_default(monkeypatch):
     handler.send_push("device-token", body="hello")
 
     assert requests[0].url.host == "api.push.apple.com"
+
+
+def test_network_failure_for_one_token_does_not_block_others(monkeypatch):
+    import httpx
+
+    from push import PushHandler
+
+    def route(request):
+        token = request.url.path.rsplit("/", 1)[-1]
+        if token == "unreachable-token":
+            raise httpx.ConnectError("connection dropped")
+        return httpx.Response(200)
+
+    transport = httpx.MockTransport(route)
+    real_client = httpx.Client
+    monkeypatch.setattr(httpx, "Client", lambda **kwargs: real_client(transport=transport))
+    handler = PushHandler()
+
+    results = handler.send_multiple_push(
+        to_device_tokens=["good-token", "unreachable-token", "other-token"], body="hello"
+    )
+
+    assert results["good-token"] == "Success"
+    assert results["unreachable-token"] == "ConnectionFailed"
+    assert results["other-token"] == "Success"

@@ -216,16 +216,23 @@ class APNsClient(object):
 
         for next_notification in notifications:
             logger.info("Sending to token %s", next_notification.token)
-            status, reason = self.send_notification_sync(
-                next_notification.token,
-                next_notification.payload,
-                self.__http_client,
-                topic,
-                priority,
-                expiration,
-                collapse_id,
-                push_type,
-            )
+            try:
+                status, reason = self.send_notification_sync(
+                    next_notification.token,
+                    next_notification.payload,
+                    self.__http_client,
+                    topic,
+                    priority,
+                    expiration,
+                    collapse_id,
+                    push_type,
+                )
+            except httpx.HTTPError as error:
+                logger.warning(
+                    "Network error sending to token %s: %s", next_notification.token, error
+                )
+                results[next_notification.token] = "ConnectionFailed"
+                continue
             result = self.get_notification_result(status, reason)
             logger.info("Got response for %s: %s", next_notification.token, result)
             results[next_notification.token] = result
