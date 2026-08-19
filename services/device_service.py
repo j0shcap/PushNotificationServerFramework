@@ -34,6 +34,8 @@ class DeviceService:
 
         Device tokens change across app reinstalls and OS restores, so clients
         re-register on every launch; registration must therefore be idempotent.
+        Clients often re-register with only the token, so stored fields are
+        preserved unless the request provides a new value.
 
         Args:
             device (Device): The device to register.
@@ -45,11 +47,10 @@ class DeviceService:
             select(DeviceEntity).where(DeviceEntity.token == device.token)
         )
         if device_entity:
-            device_entity.name = device.name
-            device_entity.systemName = device.systemName
-            device_entity.systemVersion = device.systemVersion
-            device_entity.model = device.model
-            device_entity.localizedModel = device.localizedModel
+            for field in ("name", "systemName", "systemVersion", "model", "localizedModel"):
+                value = getattr(device, field)
+                if value is not None:
+                    setattr(device_entity, field, value)
         else:
             device_entity = DeviceEntity.from_model(device)
             self._session.add(device_entity)

@@ -69,3 +69,16 @@ def test_register_same_token_twice_updates_existing_device(client):
 
     devices = client.get("/devices/all").json()
     assert len(devices) == 1
+
+
+def test_reregistering_with_only_token_preserves_stored_fields(client):
+    client.post(
+        "/devices/register",
+        json={"token": "abc123", "name": "Josh's iPhone", "systemVersion": "17.0"},
+    )
+
+    response = client.post("/devices/register", json={"token": "abc123"})
+
+    assert response.status_code == 200
+    assert response.json()["name"] == "Josh's iPhone"
+    assert response.json()["systemVersion"] == "17.0"
