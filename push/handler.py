@@ -1,3 +1,5 @@
+import threading
+
 from .apn_handler import APNsClient, Notification, Payload, TokenCredentials
 from .config import PushConfig
 
@@ -23,6 +25,12 @@ class PushHandler:
             credentials=self.token_credentials,
             use_sandbox=PushConfig.get_use_sandbox(),
         )
+
+    def close(self) -> None:
+        """
+        Closes the underlying connection to APNs.
+        """
+        self.connection.close()
 
     def send_push(
         self, to_device_token: str, body: str, sound: str = "default", badge: int = 1
@@ -74,6 +82,7 @@ class PushHandler:
 
 
 _shared_handler: PushHandler | None = None
+_shared_handler_lock = threading.Lock()
 
 
 def get_push_handler() -> PushHandler:
@@ -82,9 +91,22 @@ def get_push_handler() -> PushHandler:
 
     A single instance is kept for the process lifetime so the APNs connection
     and cached JWT are reused across requests. Apple throttles providers that
-    open connections or mint tokens too frequently.
+    open connections or mint tokens too frequently. The lock prevents
+    concurrent first requests from each opening their own connection.
     """
     global _shared_handler
-    if _shared_handler is None:
-        _shared_handler = PushHandler()
-    return _shared_handler
+    with _shared_handler_lock:
+        if _shared_handler is None:
+            _shared_handler = PushHandler()
+        return _shared_handler
+
+
+def shutdown_push_handler() -> None:
+    """
+    Closes the shared PushHandler's APNs connection, if one was created.
+    """
+    global _shared_handler
+    with _shared_handler_lock:
+        if _shared_handler is not None:
+            _shared_handler.close()
+            _shared_handler = None

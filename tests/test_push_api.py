@@ -59,3 +59,30 @@ def test_push_handler_is_shared_across_requests(monkeypatch):
 
     assert isinstance(first, PushHandler)
     assert first is second
+
+
+def test_shutdown_closes_shared_push_handler(monkeypatch, test_engine):
+    import httpx
+    from fastapi.testclient import TestClient
+
+    import database
+    import push.handler
+
+    clients = []
+    real_client = httpx.Client
+    transport = httpx.MockTransport(lambda request: httpx.Response(200))
+
+    def tracking_client(**kwargs):
+        http_client = real_client(transport=transport)
+        clients.append(http_client)
+        return http_client
+
+    monkeypatch.setattr(httpx, "Client", tracking_client)
+    monkeypatch.setattr(push.handler, "_shared_handler", None)
+    monkeypatch.setattr(database, "engine", test_engine)
+
+    with TestClient(app):
+        get_push_handler()
+
+    assert clients and all(client.is_closed for client in clients)
+    assert push.handler._shared_handler is None

@@ -11,12 +11,14 @@ from fastapi.middleware.cors import CORSMiddleware
 import database
 from apis import devices, push
 from entities import EntityBase
+from push import shutdown_push_handler
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     EntityBase.metadata.create_all(database.engine)
     yield
+    shutdown_push_handler()
 
 
 app = FastAPI(lifespan=lifespan)
