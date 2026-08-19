@@ -24,12 +24,9 @@ class NotificationType(Enum):
     MDM = "mdm"
 
 
-RequestStream = collections.namedtuple("RequestStream", ["token", "status", "reason"])
 Notification = collections.namedtuple("Notification", ["token", "payload"])
 
 DEFAULT_APNS_PRIORITY = NotificationPriority.Immediate
-CONCURRENT_STREAMS_SAFETY_MAXIMUM = 1000
-MAX_CONNECTION_RETRIES = 3
 
 logger = logging.getLogger(__name__)
 
@@ -191,9 +188,7 @@ class APNsClient(object):
                 return "Unregistered"
             return f"HTTPError{response.status_code}"
 
-    def get_notification_result(
-        self, status: int, reason: str
-    ) -> Union[str, Tuple[str, str]]:
+    def get_notification_result(self, status: int, reason: str) -> str:
         """
         Get result for specified stream
         The function returns: 'Success' or 'failure reason'
@@ -211,7 +206,7 @@ class APNsClient(object):
         expiration: Optional[int] = None,
         collapse_id: Optional[str] = None,
         push_type: Optional[NotificationType] = None,
-    ) -> Dict[str, Union[str, Tuple[str, str]]]:
+    ) -> Dict[str, str]:
         """
         Send a notification to a list of tokens in batch.
 
@@ -245,14 +240,6 @@ class APNsClient(object):
             results[next_notification.token] = result
 
         return results
-
-    def connect(self) -> None:
-        """
-        Establish a connection to APNs. If already connected, the function does nothing. If the
-        connection fails, the function retries up to MAX_CONNECTION_RETRIES times.
-        """
-        # Not needed for HTTPX
-        logger.info("APNsClient.connect called")
 
     def close(self) -> None:
         """Close the underlying HTTP connection to APNs."""
