@@ -30,7 +30,10 @@ class DeviceService:
 
     def register_device(self, device: Device) -> Device:
         """
-        Register a device.
+        Register a device, updating its information if the token is already registered.
+
+        Device tokens change across app reinstalls and OS restores, so clients
+        re-register on every launch; registration must therefore be idempotent.
 
         Args:
             device (Device): The device to register.
@@ -38,8 +41,18 @@ class DeviceService:
         Returns:
             Device: The registered device.
         """
-        device_entity = DeviceEntity.from_model(device)
-        self._session.add(device_entity)
+        device_entity = self._session.scalar(
+            select(DeviceEntity).where(DeviceEntity.token == device.token)
+        )
+        if device_entity:
+            device_entity.name = device.name
+            device_entity.systemName = device.systemName
+            device_entity.systemVersion = device.systemVersion
+            device_entity.model = device.model
+            device_entity.localizedModel = device.localizedModel
+        else:
+            device_entity = DeviceEntity.from_model(device)
+            self._session.add(device_entity)
         self._session.commit()
         return device_entity.to_model()
 

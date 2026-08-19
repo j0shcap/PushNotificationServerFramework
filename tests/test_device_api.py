@@ -53,3 +53,19 @@ def test_clear_removes_all_registered_devices(client):
 
     assert response.status_code == 200
     assert client.get("/devices/all").json() == []
+
+
+def test_register_same_token_twice_updates_existing_device(client):
+    first = client.post(
+        "/devices/register", json={"token": "abc123", "systemVersion": "17.0"}
+    )
+    second = client.post(
+        "/devices/register", json={"token": "abc123", "systemVersion": "18.1"}
+    )
+
+    assert second.status_code == 200
+    assert second.json()["id"] == first.json()["id"]
+    assert second.json()["systemVersion"] == "18.1"
+
+    devices = client.get("/devices/all").json()
+    assert len(devices) == 1
