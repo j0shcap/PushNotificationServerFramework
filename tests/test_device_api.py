@@ -1,5 +1,6 @@
 """Tests for the /devices endpoints."""
 
+from sqlalchemy import event
 from sqlalchemy.orm import Session
 
 from models import DeviceRegistration
@@ -140,10 +141,6 @@ def test_root_endpoint(client):
 
 
 def test_remove_devices_with_no_tokens_issues_no_sql(test_engine):
-    from sqlalchemy import event
-    from sqlalchemy.orm import Session
-
-    from services import DeviceService
 
     statements = []
 

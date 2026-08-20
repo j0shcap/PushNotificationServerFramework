@@ -6,7 +6,14 @@ import httpx
 import pytest
 
 from push.apn_handler import APNsClient, Payload, TokenCredentials
-from push.apn_handler.errors import APNsException, BadDeviceToken, Unregistered
+from push.apn_handler.client import NotificationPriority
+from push.apn_handler.errors import (
+    APNsException,
+    BadDeviceToken,
+    ExpiredToken,
+    InvalidPushType,
+    Unregistered,
+)
 
 KEY_PATH = str(Path(__file__).parent / "fixtures" / "apns_test_key.p8")
 
@@ -137,8 +144,6 @@ def test_non_dict_json_error_body_maps_to_status_marker(monkeypatch):
 
 
 def test_new_apns_reasons_map_to_typed_exceptions(monkeypatch):
-    from push.apn_handler.errors import InvalidPushType
-
     client = make_client(monkeypatch, 400, {"reason": "InvalidPushType"})
 
     with pytest.raises(InvalidPushType):
@@ -159,8 +164,6 @@ def test_live_activity_topic_infers_liveactivity_push_type(monkeypatch):
 
 
 def test_optional_headers_are_sent_when_specified(monkeypatch):
-    from push.apn_handler.client import NotificationPriority
-
     requests = []
     client = make_client(monkeypatch, 200, {}, requests)
 
@@ -210,8 +213,6 @@ def test_no_topic_sends_no_topic_or_push_type_headers(monkeypatch):
 
 
 def test_expired_token_maps_to_typed_exception(monkeypatch):
-    from push.apn_handler.errors import ExpiredToken
-
     client = make_client(monkeypatch, 410, {"reason": "ExpiredToken", "timestamp": "1700000000"})
 
     with pytest.raises(ExpiredToken):
