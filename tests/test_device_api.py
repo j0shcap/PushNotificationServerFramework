@@ -56,7 +56,7 @@ def test_clear_removes_all_registered_devices(client):
     client.post("/devices/register", json={"token": "token-1"})
     client.post("/devices/register", json={"token": "token-2"})
 
-    response = client.get("/devices/clear")
+    response = client.delete("/devices")
 
     assert response.status_code == 200
     assert client.get("/devices/all").json() == []
@@ -109,3 +109,7 @@ def test_concurrent_registration_race_falls_back_to_update(test_engine):
     with Session(test_engine) as session:
         devices = DeviceService(session=session).get_registered_devices()
     assert len(devices) == 1
+
+
+def test_old_clear_route_is_gone(client):
+    assert client.get("/devices/clear").status_code in (404, 405)

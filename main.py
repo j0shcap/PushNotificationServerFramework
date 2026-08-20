@@ -3,6 +3,7 @@ This file is the entry point for the FastAPI application.
 It configures middleware, adds sub-routers, and defines application-level health checks.
 """
 
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import APIRouter, FastAPI
@@ -16,6 +17,11 @@ from push import shutdown_push_handler
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    if not os.getenv("API_KEY"):
+        raise RuntimeError(
+            "API_KEY environment variable must be set; protected endpoints "
+            "require clients to send it as 'Authorization: Bearer <API_KEY>'"
+        )
     EntityBase.metadata.create_all(database.engine)
     yield
     shutdown_push_handler()

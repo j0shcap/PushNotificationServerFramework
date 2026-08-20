@@ -20,6 +20,7 @@ os.environ.setdefault("APNS_KEY_ID", "TESTKEY123")
 os.environ.setdefault("APNS_TEAM_ID", "TESTTEAM12")
 os.environ.setdefault("APNS_APP_BUNDLE_ID", "com.example.test")
 os.environ.setdefault("APNS_AUTH_KEY_PATH", str(FIXTURES_DIR / "apns_test_key.p8"))
+os.environ.setdefault("API_KEY", "test-api-key")
 
 import httpx
 import pytest
@@ -50,7 +51,7 @@ def test_engine():
 
 @pytest.fixture
 def client(test_engine, monkeypatch):
-    """TestClient wired to the in-memory database."""
+    """Authenticated TestClient wired to the in-memory database."""
     monkeypatch.setattr(database, "engine", test_engine)
 
     def override_db_session():
@@ -58,7 +59,8 @@ def client(test_engine, monkeypatch):
             yield session
 
     app.dependency_overrides[db_session] = override_db_session
-    with TestClient(app) as test_client:
+    headers = {"Authorization": f"Bearer {os.environ['API_KEY']}"}
+    with TestClient(app, headers=headers) as test_client:
         yield test_client
     app.dependency_overrides.clear()
 
