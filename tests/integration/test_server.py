@@ -75,9 +75,12 @@ def server():
     env = _integration_env()
     _drop_devices_table(env)
     port = _free_port()
+    env["PORT"] = str(port)
 
+    # Launched exactly as the README documents, so the entrypoint itself
+    # (including HOST/PORT handling) is part of what these tests cover.
     process = subprocess.Popen(
-        [sys.executable, "-m", "uvicorn", "main:app", "--port", str(port)],
+        [sys.executable, "main.py"],
         cwd=REPO_ROOT,
         env=env,
         stdout=subprocess.PIPE,

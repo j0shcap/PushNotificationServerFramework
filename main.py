@@ -70,4 +70,4 @@ app = create_app()
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app)
+    uvicorn.run(app, host=getenv("HOST", "127.0.0.1"), port=int(getenv("PORT", "8000")))

@@ -38,6 +38,13 @@ python main.py
 ```
 Interactive API documentation is served at `http://127.0.0.1:8000/docs`.
 
+## Running in Production
+`python main.py` binds to `127.0.0.1:8000`; set `HOST` and `PORT` to override. Behind a reverse proxy, run uvicorn directly with workers:
+```bash
+uvicorn main:app --host 0.0.0.0 --port 8000 --workers 2
+```
+Terminate TLS at the proxy — the API key travels in a header and must never cross plain HTTP.
+
 ## Configuration
 Configure the application through the `.env` file. Database and APNs identifiers are required; the notable options:
 
@@ -60,7 +67,14 @@ Requests without a valid key receive `401 Unauthorized`. `/devices/register` is 
 To implement push notifications in an iOS application:
 1. Register the application for push notifications ([Apple Developer documentation](https://developer.apple.com/documentation/usernotifications/registering_your_app_with_apns)).
 2. Request permission from the user to send push notifications.
-3. Post the device token to the `/devices/register` endpoint.
+3. Post the device token to the `/devices/register` endpoint. APNs hands the app the token as raw `Data`; convert it to the hex string this server expects:
+   ```swift
+   func application(_ application: UIApplication,
+                    didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+       let token = deviceToken.map { String(format: "%02x", $0) }.joined()
+       // POST ["token": token] to /devices/register
+   }
+   ```
 
 ## Device Endpoints
 #### Register a Device
