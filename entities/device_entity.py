@@ -1,4 +1,7 @@
-from sqlalchemy import Column, DateTime, Integer, String, func
+from datetime import datetime
+
+from sqlalchemy import DateTime, String, func
+from sqlalchemy.orm import Mapped, mapped_column
 
 from models import Device
 
@@ -23,15 +26,17 @@ class DeviceEntity(EntityBase):
 
     __tablename__ = "devices"
 
-    id = Column(Integer, primary_key=True, index=True)
-    token = Column(String(255), nullable=False, unique=True)
-    name = Column(String(255), nullable=True)
-    systemName = Column(String(255), nullable=True)
-    systemVersion = Column(String(255), nullable=True)
-    model = Column(String(255), nullable=True)
-    localizedModel = Column(String(255), nullable=True)
-    created_at = Column(DateTime, default=func.now())
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    token: Mapped[str] = mapped_column(String(255), unique=True)
+    name: Mapped[str | None] = mapped_column(String(255))
+    systemName: Mapped[str | None] = mapped_column(String(255))
+    systemVersion: Mapped[str | None] = mapped_column(String(255))
+    model: Mapped[str | None] = mapped_column(String(255))
+    localizedModel: Mapped[str | None] = mapped_column(String(255))
+    created_at: Mapped[datetime | None] = mapped_column(DateTime, default=func.now())
+    updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime, default=func.now(), onupdate=func.now()
+    )
 
     def to_model(self) -> Device:
         return Device(

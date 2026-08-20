@@ -11,7 +11,8 @@ def _engine_str(name: str = getenv("DB_NAME")) -> str:
     Helper function for reading settings from environment variables to produce connection string.
 
     Arguments:
-        name (str): The name of the database. Defaults to the value of the "DB_NAME" environment variable.
+        name (str): The name of the database. Defaults to the value of the
+            "DB_NAME" environment variable.
 
     Returns:
         str: The connection string for the database.

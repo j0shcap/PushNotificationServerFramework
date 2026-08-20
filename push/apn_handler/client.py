@@ -51,14 +51,13 @@ class APNsClient:
         proxy_port: int | None = None,
         heartbeat_period: float | None = None,
     ) -> None:
+        self.__credentials: Credentials
         if isinstance(credentials, str):
             self.__credentials = CertificateCredentials(credentials, password)
         else:
             self.__credentials = credentials
 
-        self._init_connection(
-            use_sandbox, use_alternative_port, proto, proxy_host, proxy_port
-        )
+        self._init_connection(use_sandbox, use_alternative_port, proto, proxy_host, proxy_port)
 
         if heartbeat_period:
             raise NotImplementedError("heartbeat not supported")
@@ -68,9 +67,7 @@ class APNsClient:
         # APNs expects providers to keep connections open across requests;
         # opening one per notification is treated as abusive by Apple.
         ssl_context = self.__credentials.ssl_context
-        self.__http_client = httpx.Client(
-            http2=True, verify=ssl_context if ssl_context else True
-        )
+        self.__http_client = httpx.Client(http2=True, verify=ssl_context if ssl_context else True)
 
     def _init_connection(
         self,
@@ -81,9 +78,7 @@ class APNsClient:
         proxy_port: int | None,
     ) -> None:
         self.__server = self.SANDBOX_SERVER if use_sandbox else self.LIVE_SERVER
-        self.__port = (
-            self.ALTERNATIVE_PORT if use_alternative_port else self.DEFAULT_PORT
-        )
+        self.__port = self.ALTERNATIVE_PORT if use_alternative_port else self.DEFAULT_PORT
 
     def send_notification(
         self,
@@ -128,7 +123,7 @@ class APNsClient:
 
         headers = {}
 
-        inferred_push_type = None  # type: Optional[str]
+        inferred_push_type: str | None = None
         if topic is not None:
             headers["apns-topic"] = topic
             if topic.endswith(".voip"):
@@ -158,7 +153,7 @@ class APNsClient:
             headers["apns-priority"] = priority.value
 
         if expiration is not None:
-            headers["apns-expiration"] = "%d" % expiration
+            headers["apns-expiration"] = str(expiration)
 
         if isinstance(self.__credentials, TokenCredentials):
             auth_header = self.__credentials.get_authorization_header(topic)

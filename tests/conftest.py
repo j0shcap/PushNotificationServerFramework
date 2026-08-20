@@ -75,9 +75,7 @@ def apns_handler_factory(monkeypatch):
 
         transport = httpx.MockTransport(route)
         real_client = httpx.Client
-        monkeypatch.setattr(
-            httpx, "Client", lambda **kwargs: real_client(transport=transport)
-        )
+        monkeypatch.setattr(httpx, "Client", lambda **kwargs: real_client(transport=transport))
         return PushHandler()
 
     return factory

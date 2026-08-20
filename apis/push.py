@@ -11,16 +11,16 @@ router = APIRouter(
 
 
 @router.post("/send", response_model=dict[str, str])
-def send_push(message: Message, pushService: PushService = Depends()):
+def send_push(message: Message, push_service: PushService = Depends()):
     """
     Sends a push notification to each recipient.
 
     Args:
         message (Message): The message to send.
-        pushService (PushService): The push service to use. Injected by FastAPI.
+        push_service (PushService): The push service to use. Injected by FastAPI.
 
     Returns:
         dict[str, str]: A mapping of each device token to "Success" or the
             APNs failure reason.
     """
-    return pushService.send_push(message)
+    return push_service.send_push(message)

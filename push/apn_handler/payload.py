@@ -34,7 +34,7 @@ class PayloadAlert:
         self.launch_image = launch_image
 
     def dict(self) -> dict[str, Any]:
-        result = {}  # type: Dict[str, Any]
+        result: dict[str, Any] = {}
 
         if self.title:
             result["title"] = self.title
@@ -92,7 +92,7 @@ class Payload:
         self.thread_id = thread_id
 
     def dict(self) -> dict[str, Any]:
-        result = {"aps": {}}  # type: Dict[str, Any]
+        result: dict[str, Any] = {"aps": {}}
 
         if self.alert is not None:
             if isinstance(self.alert, PayloadAlert):
