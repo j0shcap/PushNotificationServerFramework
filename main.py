@@ -6,6 +6,7 @@ It configures middleware, adds sub-routers, and defines application-level health
 import os
 from contextlib import asynccontextmanager
 
+import uvicorn
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -68,6 +69,4 @@ def create_app() -> FastAPI:
 app = create_app()
 
 if __name__ == "__main__":
-    import uvicorn
-
     uvicorn.run(app, host=getenv("HOST", "127.0.0.1"), port=int(getenv("PORT", "8000")))

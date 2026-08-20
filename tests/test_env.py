@@ -2,7 +2,7 @@
 
 import pytest
 
-from utils import getenv
+from utils import getenv, getenv_bool
 
 
 def test_getenv_returns_value_when_set(monkeypatch):
@@ -26,8 +26,6 @@ def test_getenv_honors_falsy_default(monkeypatch):
 
 @pytest.mark.parametrize("value", ["1", "true", "YES ", " on"])
 def test_getenv_bool_parses_truthy_values(monkeypatch, value):
-    from utils import getenv_bool
-
     monkeypatch.setenv("SOME_TEST_VAR", value)
 
     assert getenv_bool("SOME_TEST_VAR") is True
@@ -35,16 +33,12 @@ def test_getenv_bool_parses_truthy_values(monkeypatch, value):
 
 @pytest.mark.parametrize("value", ["0", "false", "NO", "off", ""])
 def test_getenv_bool_parses_falsy_values(monkeypatch, value):
-    from utils import getenv_bool
-
     monkeypatch.setenv("SOME_TEST_VAR", value)
 
     assert getenv_bool("SOME_TEST_VAR") is False
 
 
 def test_getenv_bool_returns_default_when_unset(monkeypatch):
-    from utils import getenv_bool
-
     monkeypatch.delenv("SOME_TEST_VAR", raising=False)
 
     assert getenv_bool("SOME_TEST_VAR") is False
@@ -52,8 +46,6 @@ def test_getenv_bool_returns_default_when_unset(monkeypatch):
 
 
 def test_getenv_bool_rejects_unrecognized_values(monkeypatch):
-    from utils import getenv_bool
-
     monkeypatch.setenv("SOME_TEST_VAR", "banana")
 
     with pytest.raises(ValueError):

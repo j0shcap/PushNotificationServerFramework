@@ -1,5 +1,6 @@
 """Tests for the /devices endpoints."""
 
+from sqlalchemy import event
 from sqlalchemy.orm import Session
 
 from models import DeviceRegistration
@@ -130,3 +131,27 @@ def test_register_ignores_client_supplied_server_fields(client):
     assert body["id"] != first["id"]
     assert body["created_at"] != "2000-01-01T00:00:00"
     assert len(client.get("/devices/all").json()) == 2
+
+
+def test_root_endpoint(client):
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert response.json() == {"message": "Hello World"}
+
+
+def test_remove_devices_with_no_tokens_issues_no_sql(test_engine):
+
+    statements = []
+
+    def record(conn, cursor, statement, parameters, context, executemany):
+        statements.append(statement)
+
+    event.listen(test_engine, "before_cursor_execute", record)
+    try:
+        with Session(test_engine) as session:
+            DeviceService(session=session).remove_devices([])
+    finally:
+        event.remove(test_engine, "before_cursor_execute", record)
+
+    assert statements == []
