@@ -43,6 +43,7 @@ To install this repository, follow these steps:
 Configure the application by creating an .env file based off the template. Set the necessary parameters like database connection parameters and APNs identifiers.
 
 - `API_KEY` (required): the secret protected endpoints require. The server refuses to start without it.
+- `APNS_CERT_PATH`: switches from token auth (the default, recommended by Apple) to certificate auth. Points to a PEM file containing the provider certificate and private key; `APNS_CERT_PASSWORD` supplies its passphrase if any.
 - `APNS_USE_SANDBOX`: set to `true` when testing with development builds; their device tokens are only valid against the APNs sandbox environment.
 - `CORS_ORIGINS`: comma-separated origins allowed to make cross-origin requests. Unset by default, which disables CORS entirely — iOS apps do not use CORS; only set this when serving a web frontend.
 - `DB_ECHO`: set to `true` to log SQL statements during development. Off by default because statements include device tokens.
