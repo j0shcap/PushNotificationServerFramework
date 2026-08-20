@@ -144,12 +144,6 @@ INTEGRATION_DB_HOST=localhost pytest tests/integration
 ```
 CI runs both suites, plus ruff and mypy, on every push and pull request.
 
-End-to-end tests against Apple's real APNs sandbox are opt-in because they make live network calls. The connectivity test works with any credentials; verifying actual delivery additionally needs your real APNs key configured and a sandbox device token from a development build:
-```bash
-APNS_SANDBOX_E2E=1 pytest -m apns_sandbox
-APNS_SANDBOX_E2E=1 APNS_E2E_DEVICE_TOKEN=<device_token> pytest -m apns_sandbox
-```
-
 ## Contributing
 Contributions to this repository are welcome. Please follow the standard GitHub pull request process to propose changes.
 
