@@ -2,7 +2,7 @@
 
 from sqlalchemy.orm import Session
 
-from models import Device
+from models import DeviceRegistration
 from services import DeviceService
 
 
@@ -89,7 +89,9 @@ def test_reregistering_with_only_token_preserves_stored_fields(client):
 
 def test_concurrent_registration_race_falls_back_to_update(test_engine):
     with Session(test_engine) as session:
-        DeviceService(session=session).register_device(Device(token="abc123", name="winner"))
+        DeviceService(session=session).register_device(
+            DeviceRegistration(token="abc123", name="winner")
+        )
 
     with Session(test_engine) as session:
         service = DeviceService(session=session)
@@ -103,7 +105,7 @@ def test_concurrent_registration_race_falls_back_to_update(test_engine):
             return real_scalar(*args, **kwargs)
 
         session.scalar = stale_scalar
-        result = service.register_device(Device(token="abc123", name="loser"))
+        result = service.register_device(DeviceRegistration(token="abc123", name="loser"))
 
     assert result.name == "loser"
     with Session(test_engine) as session:
@@ -113,3 +115,18 @@ def test_concurrent_registration_race_falls_back_to_update(test_engine):
 
 def test_old_clear_route_is_gone(client):
     assert client.get("/devices/clear").status_code in (404, 405)
+
+
+def test_register_ignores_client_supplied_server_fields(client):
+    first = client.post("/devices/register", json={"token": "aaa"}).json()
+
+    response = client.post(
+        "/devices/register",
+        json={"token": "bbb", "id": first["id"], "created_at": "2000-01-01T00:00:00"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["id"] != first["id"]
+    assert body["created_at"] != "2000-01-01T00:00:00"
+    assert len(client.get("/devices/all").json()) == 2

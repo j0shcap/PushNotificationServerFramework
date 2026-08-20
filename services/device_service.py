@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from database import db_session
 from entities import DeviceEntity
-from models import Device
+from models import Device, DeviceRegistration
 
 
 class DeviceService:
@@ -16,9 +16,10 @@ class DeviceService:
         session (Session): The database session to use. Injected by FastAPI.
 
     Methods:
-        register_device(device: Device) -> Device: Register a device.
-        get_registered_devices() -> list[Device]: Get all registered devices.
-        clear_registered_devices() -> None: Clear all registered devices.
+        register_device: Register or update a device.
+        get_registered_devices: Get all registered devices.
+        remove_devices: Remove devices by token.
+        clear_registered_devices: Clear all registered devices.
     """
 
     def __init__(self, session: Session = Depends(db_session)):
@@ -30,7 +31,7 @@ class DeviceService:
         """
         self._session = session
 
-    def register_device(self, device: Device) -> Device:
+    def register_device(self, registration: DeviceRegistration) -> Device:
         """
         Register a device, updating its information if the token is already registered.
 
@@ -40,13 +41,13 @@ class DeviceService:
         preserved unless the request provides a new value.
 
         Args:
-            device (Device): The device to register.
+            registration (DeviceRegistration): The device information to register.
 
         Returns:
             Device: The registered device.
         """
         device_entity = self._session.scalar(
-            select(DeviceEntity).where(DeviceEntity.token == device.token)
+            select(DeviceEntity).where(DeviceEntity.token == registration.token)
         )
         if device_entity:
             for field in (
@@ -56,21 +57,23 @@ class DeviceService:
                 "model",
                 "localizedModel",
             ):
-                value = getattr(device, field)
+                value = getattr(registration, field)
                 if value is not None:
                     setattr(device_entity, field, value)
             self._session.commit()
             return device_entity.to_model()
 
-        device_entity = DeviceEntity.from_model(device)
+        device_entity = DeviceEntity.from_registration(registration)
         self._session.add(device_entity)
         try:
             self._session.commit()
         except IntegrityError:
             # A concurrent request registered the same token between our
             # select and commit; retry to update the row that won the race.
+            # Only the token column is client-controlled and unique, so the
+            # retry always finds the winning row and takes the update path.
             self._session.rollback()
-            return self.register_device(device)
+            return self.register_device(registration)
         return device_entity.to_model()
 
     def get_registered_devices(self) -> list[Device]:

@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy import DateTime, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
-from models import Device
+from models import Device, DeviceRegistration
 
 from .entity_base import EntityBase
 
@@ -52,15 +52,14 @@ class DeviceEntity(EntityBase):
         )
 
     @classmethod
-    def from_model(cls, model: Device) -> "DeviceEntity":
+    def from_registration(cls, registration: DeviceRegistration) -> "DeviceEntity":
+        """Builds a new entity from client-supplied fields; the id and
+        timestamps are server-managed and never taken from the request."""
         return cls(
-            id=model.id,
-            token=model.token,
-            name=model.name,
-            systemName=model.systemName,
-            systemVersion=model.systemVersion,
-            model=model.model,
-            localizedModel=model.localizedModel,
-            created_at=model.created_at,
-            updated_at=model.updated_at,
+            token=registration.token,
+            name=registration.name,
+            systemName=registration.systemName,
+            systemVersion=registration.systemVersion,
+            model=registration.model,
+            localizedModel=registration.localizedModel,
         )

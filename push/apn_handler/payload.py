@@ -1,8 +1,6 @@
 from collections.abc import Iterable
 from typing import Any
 
-MAX_PAYLOAD_SIZE = 4096
-
 
 class PayloadAlert:
     def __init__(

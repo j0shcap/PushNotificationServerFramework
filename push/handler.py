@@ -1,6 +1,6 @@
 import threading
 
-from .apn_handler import APNsClient, Notification, Payload, TokenCredentials
+from .apn_handler import APNsClient, Credentials, Notification, Payload
 from .config import PushConfig
 
 
@@ -9,8 +9,8 @@ class PushHandler:
     A wrapper class for sending push notifications using the Apple Push Notification service (APNs).
 
     Attributes:
-        token_credentials (TokenCredentials): The token credentials required to
-            connect to APNs.
+        credentials (Credentials): The credentials used to authenticate with
+            APNs; token-based or certificate-based per PushConfig.
         connection (APNsClient): An instance of the APNsClient class used to
             establish a connection to APNs.
 
@@ -20,9 +20,9 @@ class PushHandler:
     """
 
     def __init__(self):
-        self.token_credentials: TokenCredentials = PushConfig.get_token_credentials()
+        self.credentials: Credentials = PushConfig.get_credentials()
         self.connection: APNsClient = APNsClient(
-            credentials=self.token_credentials,
+            credentials=self.credentials,
             use_sandbox=PushConfig.get_use_sandbox(),
         )
 
