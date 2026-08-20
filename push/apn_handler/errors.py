@@ -159,43 +159,47 @@ class Shutdown(APNsException):
     """The server is shutting down."""
 
 
+REASON_TO_EXCEPTION: dict[str, type[APNsException]] = {
+    "BadCollapseId": BadCollapseId,
+    "BadDeviceToken": BadDeviceToken,
+    "BadExpirationDate": BadExpirationDate,
+    "BadMessageId": BadMessageId,
+    "BadPriority": BadPriority,
+    "BadTopic": BadTopic,
+    "DeviceTokenNotForTopic": DeviceTokenNotForTopic,
+    "DuplicateHeaders": DuplicateHeaders,
+    "IdleTimeout": IdleTimeout,
+    "MissingDeviceToken": MissingDeviceToken,
+    "MissingTopic": MissingTopic,
+    "PayloadEmpty": PayloadEmpty,
+    "TopicDisallowed": TopicDisallowed,
+    "BadCertificate": BadCertificate,
+    "BadCertificateEnvironment": BadCertificateEnvironment,
+    "ExpiredProviderToken": ExpiredProviderToken,
+    "Forbidden": Forbidden,
+    "InvalidProviderToken": InvalidProviderToken,
+    "MissingProviderToken": MissingProviderToken,
+    "BadPath": BadPath,
+    "MethodNotAllowed": MethodNotAllowed,
+    "Unregistered": Unregistered,
+    "ExpiredToken": ExpiredToken,
+    "InvalidPushType": InvalidPushType,
+    "BadEnvironmentKeyIdInToken": BadEnvironmentKeyIdInToken,
+    "UnrelatedKeyIdInToken": UnrelatedKeyIdInToken,
+    "PayloadTooLarge": PayloadTooLarge,
+    "TooManyProviderTokenUpdates": TooManyProviderTokenUpdates,
+    "TooManyRequests": TooManyRequests,
+    "InternalServerError": InternalServerError,
+    "ServiceUnavailable": ServiceUnavailable,
+    "Shutdown": Shutdown,
+}
+"""Every error reason documented by Apple, mapped to its exception class."""
+
+
 def exception_class_for_reason(reason: str) -> type[APNsException]:
     """Map an APNs 'reason' string to its exception class.
 
     Falls back to APNsException for reasons this module does not know about,
     so new reasons introduced by Apple do not break error handling.
     """
-    return {
-        "BadCollapseId": BadCollapseId,
-        "BadDeviceToken": BadDeviceToken,
-        "BadExpirationDate": BadExpirationDate,
-        "BadMessageId": BadMessageId,
-        "BadPriority": BadPriority,
-        "BadTopic": BadTopic,
-        "DeviceTokenNotForTopic": DeviceTokenNotForTopic,
-        "DuplicateHeaders": DuplicateHeaders,
-        "IdleTimeout": IdleTimeout,
-        "MissingDeviceToken": MissingDeviceToken,
-        "MissingTopic": MissingTopic,
-        "PayloadEmpty": PayloadEmpty,
-        "TopicDisallowed": TopicDisallowed,
-        "BadCertificate": BadCertificate,
-        "BadCertificateEnvironment": BadCertificateEnvironment,
-        "ExpiredProviderToken": ExpiredProviderToken,
-        "Forbidden": Forbidden,
-        "InvalidProviderToken": InvalidProviderToken,
-        "MissingProviderToken": MissingProviderToken,
-        "BadPath": BadPath,
-        "MethodNotAllowed": MethodNotAllowed,
-        "Unregistered": Unregistered,
-        "ExpiredToken": ExpiredToken,
-        "InvalidPushType": InvalidPushType,
-        "BadEnvironmentKeyIdInToken": BadEnvironmentKeyIdInToken,
-        "UnrelatedKeyIdInToken": UnrelatedKeyIdInToken,
-        "PayloadTooLarge": PayloadTooLarge,
-        "TooManyProviderTokenUpdates": TooManyProviderTokenUpdates,
-        "TooManyRequests": TooManyRequests,
-        "InternalServerError": InternalServerError,
-        "ServiceUnavailable": ServiceUnavailable,
-        "Shutdown": Shutdown,
-    }.get(reason, APNsException)
+    return REASON_TO_EXCEPTION.get(reason, APNsException)
