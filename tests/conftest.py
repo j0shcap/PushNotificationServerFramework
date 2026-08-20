@@ -49,9 +49,20 @@ def test_engine():
     engine.dispose()
 
 
-@pytest.fixture
-def client(test_engine, monkeypatch):
-    """Authenticated TestClient wired to the in-memory database."""
+PROTECTED_ROUTES = [
+    ("POST", "/push/send"),
+    ("GET", "/devices/all"),
+    ("DELETE", "/devices"),
+]
+
+
+@pytest.fixture(params=PROTECTED_ROUTES, ids=lambda route: f"{route[0]} {route[1]}")
+def protected_route(request):
+    """Each (method, path) pair that must require the API key."""
+    return request.param
+
+
+def _build_client(test_engine, monkeypatch, headers=None):
     monkeypatch.setattr(database, "engine", test_engine)
 
     def override_db_session():
@@ -59,8 +70,22 @@ def client(test_engine, monkeypatch):
             yield session
 
     app.dependency_overrides[db_session] = override_db_session
+    return TestClient(app, headers=headers)
+
+
+@pytest.fixture
+def client(test_engine, monkeypatch):
+    """Authenticated TestClient wired to the in-memory database."""
     headers = {"Authorization": f"Bearer {os.environ['API_KEY']}"}
-    with TestClient(app, headers=headers) as test_client:
+    with _build_client(test_engine, monkeypatch, headers) as test_client:
+        yield test_client
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def anon_client(test_engine, monkeypatch):
+    """TestClient that sends no Authorization header."""
+    with _build_client(test_engine, monkeypatch) as test_client:
         yield test_client
     app.dependency_overrides.clear()
 

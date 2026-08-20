@@ -2,54 +2,25 @@
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
 
 import database
-from database import db_session
 from main import app
 
 WRONG_KEY_HEADERS = {"Authorization": "Bearer wrong-key"}
 
 
-@pytest.fixture
-def anon_client(test_engine, monkeypatch):
-    """TestClient that sends no Authorization header."""
-    monkeypatch.setattr(database, "engine", test_engine)
+def test_protected_route_rejects_missing_credentials(anon_client, protected_route):
+    method, path = protected_route
 
-    def override_db_session():
-        with Session(test_engine) as session:
-            yield session
-
-    app.dependency_overrides[db_session] = override_db_session
-    with TestClient(app) as test_client:
-        yield test_client
-    app.dependency_overrides.clear()
-
-
-@pytest.mark.parametrize(
-    ("method", "path"),
-    [
-        ("POST", "/push/send"),
-        ("GET", "/devices/all"),
-        ("DELETE", "/devices"),
-    ],
-)
-def test_protected_route_rejects_missing_credentials(anon_client, method, path):
     response = anon_client.request(method, path, json={"recipients": [], "body": "x"})
 
     assert response.status_code == 401
     assert response.headers["WWW-Authenticate"] == "Bearer"
 
 
-@pytest.mark.parametrize(
-    ("method", "path"),
-    [
-        ("POST", "/push/send"),
-        ("GET", "/devices/all"),
-        ("DELETE", "/devices"),
-    ],
-)
-def test_protected_route_rejects_wrong_key(anon_client, method, path):
+def test_protected_route_rejects_wrong_key(anon_client, protected_route):
+    method, path = protected_route
+
     response = anon_client.request(
         method, path, headers=WRONG_KEY_HEADERS, json={"recipients": [], "body": "x"}
     )

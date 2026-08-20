@@ -4,9 +4,19 @@ from auth import require_api_key
 from models import Device, DeviceRegistration
 from services import DeviceService
 
+# Registration is called by the iOS app itself and stays unauthenticated;
+# everything that exposes or destroys device data goes on protected_router,
+# so new routes are authenticated unless deliberately placed here.
 router = APIRouter(
     prefix="/devices",
     tags=["devices"],
+    responses={404: {"description": "Not found"}},
+)
+
+protected_router = APIRouter(
+    prefix="/devices",
+    tags=["devices"],
+    dependencies=[Depends(require_api_key)],
     responses={404: {"description": "Not found"}},
 )
 
@@ -26,7 +36,7 @@ def register_device(registration: DeviceRegistration, device_service: DeviceServ
     return device_service.register_device(registration)
 
 
-@router.get("/all", response_model=list[Device], dependencies=[Depends(require_api_key)])
+@protected_router.get("/all", response_model=list[Device])
 def get_registered_devices(
     device_service: DeviceService = Depends(),
 ):
@@ -42,7 +52,7 @@ def get_registered_devices(
     return device_service.get_registered_devices()
 
 
-@router.delete("", response_model=None, dependencies=[Depends(require_api_key)])
+@protected_router.delete("", response_model=None)
 def clear_registered_devices(
     device_service: DeviceService = Depends(),
 ):
