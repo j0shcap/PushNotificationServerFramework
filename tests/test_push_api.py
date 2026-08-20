@@ -69,9 +69,7 @@ def test_send_push_removes_unregistered_devices(client, apns_handler_factory):
 def test_push_handler_is_shared_across_requests(monkeypatch):
     transport = httpx.MockTransport(lambda request: httpx.Response(200))
     real_client = httpx.Client
-    monkeypatch.setattr(
-        httpx, "Client", lambda **kwargs: real_client(transport=transport)
-    )
+    monkeypatch.setattr(httpx, "Client", lambda **kwargs: real_client(transport=transport))
     monkeypatch.setattr(push.handler, "_shared_handler", None)
 
     first = get_push_handler()
@@ -102,9 +100,7 @@ def test_shutdown_closes_shared_push_handler(monkeypatch, test_engine):
     assert push.handler._shared_handler is None
 
 
-def test_send_push_with_no_recipients_returns_empty_results(
-    client, apns_handler_factory
-):
+def test_send_push_with_no_recipients_returns_empty_results(client, apns_handler_factory):
     override_handler(apns_handler_factory({}))
 
     response = client.post("/push/send", json={"recipients": [], "body": "hello"})
@@ -139,3 +135,16 @@ def test_prune_failure_does_not_discard_push_results(client, apns_handler_factor
 
     assert response.status_code == 200
     assert response.json() == {"good-token": "Success", "stale-token": "Unregistered"}
+
+
+def test_send_push_removes_expired_token_devices(client, apns_handler_factory):
+    override_handler(
+        apns_handler_factory(
+            {"dead-token": (410, {"reason": "ExpiredToken", "timestamp": "1700000000"})}
+        )
+    )
+    client.post("/devices/register", json={"token": "dead-token"})
+
+    client.post("/push/send", json={"recipients": ["dead-token"], "body": "hello"})
+
+    assert client.get("/devices/all").json() == []

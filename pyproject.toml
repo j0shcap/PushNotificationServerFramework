@@ -1,0 +1,39 @@
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "SIM", # flake8-simplify
+    "C4",  # flake8-comprehensions
+]
+# Model fields mirror Apple's UIDevice camelCase property names
+ignore = ["N815"]
+
+[tool.ruff.lint.flake8-bugbear]
+# Depends() in argument defaults is the FastAPI injection idiom
+extend-immutable-calls = ["fastapi.Depends"]
+
+[tool.ruff.lint.per-file-ignores]
+# Environment variables must be set before application modules are imported
+"tests/conftest.py" = ["E402"]
+# APNsException is the vendored apns2 package's public exception name
+"push/apn_handler/errors.py" = ["N818"]
+
+[tool.mypy]
+python_version = "3.11"
+strict_optional = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disable_error_code = ["method-assign"]

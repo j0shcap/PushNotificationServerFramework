@@ -35,9 +35,7 @@ def make_recording_handler(monkeypatch):
 
     transport = httpx.MockTransport(route)
     real_client = httpx.Client
-    monkeypatch.setattr(
-        httpx, "Client", lambda **kwargs: real_client(transport=transport)
-    )
+    monkeypatch.setattr(httpx, "Client", lambda **kwargs: real_client(transport=transport))
     return PushHandler(), requests
 
 
@@ -47,7 +45,7 @@ def test_sandbox_flag_targets_development_server(monkeypatch):
 
     handler.send_push("device-token", body="hello")
 
-    assert requests[0].url.host == "api.development.push.apple.com"
+    assert requests[0].url.host == "api.sandbox.push.apple.com"
 
 
 def test_production_server_is_default(monkeypatch):
@@ -68,9 +66,7 @@ def test_network_failure_for_one_token_does_not_block_others(monkeypatch):
 
     transport = httpx.MockTransport(route)
     real_client = httpx.Client
-    monkeypatch.setattr(
-        httpx, "Client", lambda **kwargs: real_client(transport=transport)
-    )
+    monkeypatch.setattr(httpx, "Client", lambda **kwargs: real_client(transport=transport))
     handler = PushHandler()
 
     results = handler.send_multiple_push(
@@ -100,7 +96,7 @@ def test_sandbox_flag_tolerates_surrounding_whitespace(monkeypatch):
 
     handler.send_push("device-token", body="hello")
 
-    assert requests[0].url.host == "api.development.push.apple.com"
+    assert requests[0].url.host == "api.sandbox.push.apple.com"
 
 
 def test_unrecognized_sandbox_value_is_rejected(monkeypatch):

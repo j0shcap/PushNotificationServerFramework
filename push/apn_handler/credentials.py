@@ -19,9 +19,7 @@ class Credentials:
 
 # Credentials subclass for certificate authentication
 class CertificateCredentials(Credentials):
-    def __init__(
-        self, cert_file: str | None = None, password: str | None = None
-    ) -> None:
+    def __init__(self, cert_file: str, password: str | None = None) -> None:
         ssl_context = ssl.create_default_context()
         ssl_context.load_cert_chain(cert_file, password=password)
         super().__init__(ssl_context)
@@ -43,14 +41,14 @@ class TokenCredentials(Credentials):
         self.__encryption_algorithm = encryption_algorithm
         self.__token_lifetime = token_lifetime
 
-        self.__jwt_token = None  # type: Optional[Tuple[float, str]]
+        self.__jwt_token: tuple[float, str] | None = None
 
         # Use the default constructor because we don't have an SSL context
         super().__init__()
 
     def get_authorization_header(self, topic: str | None) -> str:
         token = self._get_or_create_topic_token()
-        return "bearer %s" % token
+        return f"bearer {token}"
 
     def _is_expired_token(self, issue_date: float) -> bool:
         return time.time() > issue_date + self.__token_lifetime

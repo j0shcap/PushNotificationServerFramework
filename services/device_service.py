@@ -92,9 +92,7 @@ class DeviceService:
         """
         if not tokens:
             return
-        self._session.execute(
-            delete(DeviceEntity).where(DeviceEntity.token.in_(tokens))
-        )
+        self._session.execute(delete(DeviceEntity).where(DeviceEntity.token.in_(tokens)))
         self._session.commit()
 
     def clear_registered_devices(self) -> None:

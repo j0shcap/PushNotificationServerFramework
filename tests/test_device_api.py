@@ -63,12 +63,8 @@ def test_clear_removes_all_registered_devices(client):
 
 
 def test_register_same_token_twice_updates_existing_device(client):
-    first = client.post(
-        "/devices/register", json={"token": "abc123", "systemVersion": "17.0"}
-    )
-    second = client.post(
-        "/devices/register", json={"token": "abc123", "systemVersion": "18.1"}
-    )
+    first = client.post("/devices/register", json={"token": "abc123", "systemVersion": "17.0"})
+    second = client.post("/devices/register", json={"token": "abc123", "systemVersion": "18.1"})
 
     assert second.status_code == 200
     assert second.json()["id"] == first.json()["id"]
@@ -93,9 +89,7 @@ def test_reregistering_with_only_token_preserves_stored_fields(client):
 
 def test_concurrent_registration_race_falls_back_to_update(test_engine):
     with Session(test_engine) as session:
-        DeviceService(session=session).register_device(
-            Device(token="abc123", name="winner")
-        )
+        DeviceService(session=session).register_device(Device(token="abc123", name="winner"))
 
     with Session(test_engine) as session:
         service = DeviceService(session=session)
