@@ -20,7 +20,7 @@ def make_credentials(**kwargs):
 
 
 def test_authorization_header_contains_signed_es256_jwt():
-    header = make_credentials().get_authorization_header("com.example.test")
+    header = make_credentials().get_authorization_header()
 
     assert header.startswith("bearer ")
     token = header.removeprefix("bearer ")
@@ -38,7 +38,7 @@ def test_authorization_header_contains_signed_es256_jwt():
 def test_token_is_reused_until_expiry():
     credentials = make_credentials()
 
-    first = credentials.get_authorization_header("com.example.test")
-    second = credentials.get_authorization_header("com.example.test")
+    first = credentials.get_authorization_header()
+    second = credentials.get_authorization_header()
 
     assert first == second

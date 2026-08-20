@@ -1,22 +1,26 @@
-import collections
 import json
 import logging
 from collections.abc import Iterable
-from enum import Enum
+from enum import StrEnum
+from typing import NamedTuple
 
 import httpx
 
-from .credentials import CertificateCredentials, Credentials, TokenCredentials
+from .credentials import Credentials, TokenCredentials
 from .errors import exception_class_for_reason
 from .payload import Payload
 
+DEFAULT_REQUEST_TIMEOUT = 10.0
 
-class NotificationPriority(Enum):
+logger = logging.getLogger(__name__)
+
+
+class NotificationPriority(StrEnum):
     Immediate = "10"
     Delayed = "5"
 
 
-class NotificationType(Enum):
+class NotificationType(StrEnum):
     Alert = "alert"
     Background = "background"
     VoIP = "voip"
@@ -30,11 +34,24 @@ class NotificationType(Enum):
     PushToTalk = "pushtotalk"
 
 
-Notification = collections.namedtuple("Notification", ["token", "payload"])
+class Notification(NamedTuple):
+    token: str
+    payload: Payload
+
 
 DEFAULT_APNS_PRIORITY = NotificationPriority.Immediate
 
-logger = logging.getLogger(__name__)
+# apns-push-type values inferred from conventional apns-topic suffixes.
+_PUSH_TYPE_BY_TOPIC_SUFFIX = {
+    ".voip-ptt": NotificationType.PushToTalk,
+    ".voip": NotificationType.VoIP,
+    ".complication": NotificationType.Complication,
+    ".pushkit.fileprovider": NotificationType.FileProvider,
+    ".push-type.liveactivity": NotificationType.LiveActivity,
+    ".location-query": NotificationType.Location,
+    ".push-type.widgets": NotificationType.Widgets,
+    ".push-type.controls": NotificationType.Controls,
+}
 
 
 class APNsClient:
@@ -46,44 +63,24 @@ class APNsClient:
 
     def __init__(
         self,
-        credentials: Credentials | str,
+        credentials: Credentials,
         use_sandbox: bool = False,
         use_alternative_port: bool = False,
-        proto: str | None = None,
         json_encoder: type | None = None,
-        password: str | None = None,
-        proxy_host: str | None = None,
-        proxy_port: int | None = None,
-        heartbeat_period: float | None = None,
     ) -> None:
-        self.__credentials: Credentials
-        if isinstance(credentials, str):
-            self.__credentials = CertificateCredentials(credentials, password)
-        else:
-            self.__credentials = credentials
-
-        self._init_connection(use_sandbox, use_alternative_port, proto, proxy_host, proxy_port)
-
-        if heartbeat_period:
-            raise NotImplementedError("heartbeat not supported")
-
-        self.__json_encoder = json_encoder
+        self._credentials = credentials
+        self._json_encoder = json_encoder
+        self._server = self.SANDBOX_SERVER if use_sandbox else self.LIVE_SERVER
+        self._port = self.ALTERNATIVE_PORT if use_alternative_port else self.DEFAULT_PORT
 
         # APNs expects providers to keep connections open across requests;
         # opening one per notification is treated as abusive by Apple.
-        ssl_context = self.__credentials.ssl_context
-        self.__http_client = httpx.Client(http2=True, verify=ssl_context if ssl_context else True)
-
-    def _init_connection(
-        self,
-        use_sandbox: bool,
-        use_alternative_port: bool,
-        proto: str | None,
-        proxy_host: str | None,
-        proxy_port: int | None,
-    ) -> None:
-        self.__server = self.SANDBOX_SERVER if use_sandbox else self.LIVE_SERVER
-        self.__port = self.ALTERNATIVE_PORT if use_alternative_port else self.DEFAULT_PORT
+        ssl_context = credentials.ssl_context
+        self._http_client = httpx.Client(
+            http2=True,
+            verify=ssl_context if ssl_context else True,
+            timeout=DEFAULT_REQUEST_TIMEOUT,
+        )
 
     def send_notification(
         self,
@@ -94,10 +91,9 @@ class APNsClient:
         expiration: int | None = None,
         collapse_id: str | None = None,
     ) -> None:
-        status, reason = self.send_notification_sync(
+        status, reason = self._send(
             token_hex,
             notification,
-            self.__http_client,
             topic,
             priority,
             expiration,
@@ -107,11 +103,54 @@ class APNsClient:
         if status != 200:
             raise exception_class_for_reason(reason)(reason)
 
-    def send_notification_sync(
+    def send_notification_batch(
+        self,
+        notifications: Iterable[Notification],
+        topic: str | None = None,
+        priority: NotificationPriority = NotificationPriority.Immediate,
+        expiration: int | None = None,
+        collapse_id: str | None = None,
+        push_type: NotificationType | None = None,
+    ) -> dict[str, str]:
+        """
+        Send a notification to a list of tokens.
+
+        Returns a dictionary mapping each token to "Success", the reason
+        string APNs answered with, or "ConnectionFailed" for a network error.
+        A failure for one token does not prevent delivery to the others.
+        """
+        results = {}
+
+        for notification in notifications:
+            logger.info("Sending to token %s", notification.token)
+            try:
+                status, reason = self._send(
+                    notification.token,
+                    notification.payload,
+                    topic,
+                    priority,
+                    expiration,
+                    collapse_id,
+                    push_type,
+                )
+            except httpx.HTTPError as error:
+                logger.warning("Network error sending to token %s: %r", notification.token, error)
+                results[notification.token] = "ConnectionFailed"
+                continue
+            result = "Success" if status == 200 else reason
+            logger.info("Got response for %s: %s", notification.token, result)
+            results[notification.token] = result
+
+        return results
+
+    def close(self) -> None:
+        """Close the underlying HTTP connection to APNs."""
+        self._http_client.close()
+
+    def _send(
         self,
         token_hex: str,
         notification: Payload,
-        client: httpx.Client,
         topic: str | None = None,
         priority: NotificationPriority = NotificationPriority.Immediate,
         expiration: int | None = None,
@@ -120,7 +159,7 @@ class APNsClient:
     ) -> tuple[int, str]:
         json_str = json.dumps(
             notification.dict(),
-            cls=self.__json_encoder,
+            cls=self._json_encoder,
             ensure_ascii=False,
             separators=(",", ":"),
         )
@@ -128,41 +167,13 @@ class APNsClient:
 
         headers = {}
 
-        inferred_push_type: str | None = None
         if topic is not None:
             headers["apns-topic"] = topic
-            if topic.endswith(".voip-ptt"):
-                inferred_push_type = NotificationType.PushToTalk.value
-            elif topic.endswith(".voip"):
-                inferred_push_type = NotificationType.VoIP.value
-            elif topic.endswith(".complication"):
-                inferred_push_type = NotificationType.Complication.value
-            elif topic.endswith(".pushkit.fileprovider"):
-                inferred_push_type = NotificationType.FileProvider.value
-            elif topic.endswith(".push-type.liveactivity"):
-                inferred_push_type = NotificationType.LiveActivity.value
-            elif topic.endswith(".location-query"):
-                inferred_push_type = NotificationType.Location.value
-            elif topic.endswith(".push-type.widgets"):
-                inferred_push_type = NotificationType.Widgets.value
-            elif topic.endswith(".push-type.controls"):
-                inferred_push_type = NotificationType.Controls.value
-            elif any(
-                [
-                    notification.alert is not None,
-                    notification.badge is not None,
-                    notification.sound is not None,
-                ]
-            ):
-                inferred_push_type = NotificationType.Alert.value
-            else:
-                inferred_push_type = NotificationType.Background.value
 
-        if push_type:
-            inferred_push_type = push_type.value
-
-        if inferred_push_type:
-            headers["apns-push-type"] = inferred_push_type
+        if push_type is None:
+            push_type = self._infer_push_type(topic, notification)
+        if push_type is not None:
+            headers["apns-push-type"] = push_type.value
 
         if priority != DEFAULT_APNS_PRIORITY:
             headers["apns-priority"] = priority.value
@@ -170,17 +181,29 @@ class APNsClient:
         if expiration is not None:
             headers["apns-expiration"] = str(expiration)
 
-        if isinstance(self.__credentials, TokenCredentials):
-            auth_header = self.__credentials.get_authorization_header(topic)
-            if auth_header is not None:
-                headers["authorization"] = auth_header
+        if isinstance(self._credentials, TokenCredentials):
+            headers["authorization"] = self._credentials.get_authorization_header()
 
         if collapse_id is not None:
             headers["apns-collapse-id"] = collapse_id
 
-        url = f"https://{self.__server}:{self.__port}/3/device/{token_hex}"
-        response = client.post(url, headers=headers, content=json_payload)
+        url = f"https://{self._server}:{self._port}/3/device/{token_hex}"
+        response = self._http_client.post(url, headers=headers, content=json_payload)
         return response.status_code, self._extract_reason(response)
+
+    @staticmethod
+    def _infer_push_type(topic: str | None, notification: Payload) -> NotificationType | None:
+        if topic is None:
+            return None
+        for suffix, push_type in _PUSH_TYPE_BY_TOPIC_SUFFIX.items():
+            if topic.endswith(suffix):
+                return push_type
+        if any(
+            value is not None
+            for value in (notification.alert, notification.badge, notification.sound)
+        ):
+            return NotificationType.Alert
+        return NotificationType.Background
 
     @staticmethod
     def _extract_reason(response: httpx.Response) -> str:
@@ -204,62 +227,3 @@ class APNsClient:
             if response.status_code == 410:
                 return "Unregistered"
             return f"HTTPError{response.status_code}"
-
-    def get_notification_result(self, status: int, reason: str) -> str:
-        """
-        Get result for specified stream
-        The function returns: 'Success' or 'failure reason'
-        """
-        if status == 200:
-            return "Success"
-        else:
-            return reason
-
-    def send_notification_batch(
-        self,
-        notifications: Iterable[Notification],
-        topic: str | None = None,
-        priority: NotificationPriority = NotificationPriority.Immediate,
-        expiration: int | None = None,
-        collapse_id: str | None = None,
-        push_type: NotificationType | None = None,
-    ) -> dict[str, str]:
-        """
-        Send a notification to a list of tokens in batch.
-
-        The function returns a dictionary mapping each token to its result. The result is "Success"
-        if the token was sent successfully, or the string returned by APNs in the 'reason' field of
-        the response, if the token generated an error.
-        """
-        results = {}
-
-        for next_notification in notifications:
-            logger.info("Sending to token %s", next_notification.token)
-            try:
-                status, reason = self.send_notification_sync(
-                    next_notification.token,
-                    next_notification.payload,
-                    self.__http_client,
-                    topic,
-                    priority,
-                    expiration,
-                    collapse_id,
-                    push_type,
-                )
-            except httpx.HTTPError as error:
-                logger.warning(
-                    "Network error sending to token %s: %r",
-                    next_notification.token,
-                    error,
-                )
-                results[next_notification.token] = "ConnectionFailed"
-                continue
-            result = self.get_notification_result(status, reason)
-            logger.info("Got response for %s: %s", next_notification.token, result)
-            results[next_notification.token] = result
-
-        return results
-
-    def close(self) -> None:
-        """Close the underlying HTTP connection to APNs."""
-        self.__http_client.close()

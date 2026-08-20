@@ -6,13 +6,9 @@ from sqlalchemy.orm import Session
 from utils import getenv, getenv_bool
 
 
-def _engine_str(name: str = getenv("DB_NAME")) -> str:
+def _engine_str() -> str:
     """
     Helper function for reading settings from environment variables to produce connection string.
-
-    Arguments:
-        name (str): The name of the database. Defaults to the value of the
-            "DB_NAME" environment variable.
 
     Returns:
         str: The connection string for the database.
@@ -22,6 +18,7 @@ def _engine_str(name: str = getenv("DB_NAME")) -> str:
     password = getenv("DB_PASSWORD")
     host = getenv("DB_HOST")
     port = getenv("DB_PORT")
+    name = getenv("DB_NAME")
     return f"{dialect}://{user}:{password}@{host}:{port}/{name}"
 
 
