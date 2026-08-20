@@ -160,15 +160,9 @@ def test_registration_rejects_missing_token(anon_api):
     assert anon_api.post("/devices/register", json={"name": "no token"}).status_code == 422
 
 
-@pytest.mark.parametrize(
-    ("method", "path"),
-    [
-        ("GET", "/devices/all"),
-        ("DELETE", "/devices"),
-        ("POST", "/push/send"),
-    ],
-)
-def test_protected_routes_require_credentials(anon_api, method, path):
+def test_protected_routes_require_credentials(anon_api, protected_route):
+    method, path = protected_route
+
     response = anon_api.request(method, path, json={"recipients": [], "body": "x"})
 
     assert response.status_code == 401

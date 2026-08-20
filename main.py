@@ -3,7 +3,6 @@ This file is the entry point for the FastAPI application.
 It configures middleware, adds sub-routers, and defines application-level health checks.
 """
 
-import os
 from contextlib import asynccontextmanager
 
 import uvicorn
@@ -19,7 +18,7 @@ from utils import getenv
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    if not os.getenv("API_KEY"):
+    if not getenv("API_KEY", ""):
         raise RuntimeError(
             "API_KEY environment variable must be set; protected endpoints "
             "require clients to send it as 'Authorization: Bearer <API_KEY>'"
@@ -51,7 +50,7 @@ def create_app() -> FastAPI:
             allow_headers=["*"],
         )
 
-    routers: list[APIRouter] = [devices.router, push.router]
+    routers: list[APIRouter] = [devices.router, devices.protected_router, push.router]
     for router in routers:
         app.include_router(router)
 
