@@ -23,6 +23,11 @@ class NotificationType(Enum):
     Complication = "complication"
     FileProvider = "fileprovider"
     MDM = "mdm"
+    LiveActivity = "liveactivity"
+    Location = "location"
+    Widgets = "widgets"
+    Controls = "controls"
+    PushToTalk = "pushtotalk"
 
 
 Notification = collections.namedtuple("Notification", ["token", "payload"])
@@ -33,7 +38,7 @@ logger = logging.getLogger(__name__)
 
 
 class APNsClient:
-    SANDBOX_SERVER = "api.development.push.apple.com"
+    SANDBOX_SERVER = "api.sandbox.push.apple.com"
     LIVE_SERVER = "api.push.apple.com"
 
     DEFAULT_PORT = 443
@@ -126,12 +131,22 @@ class APNsClient:
         inferred_push_type: str | None = None
         if topic is not None:
             headers["apns-topic"] = topic
-            if topic.endswith(".voip"):
+            if topic.endswith(".voip-ptt"):
+                inferred_push_type = NotificationType.PushToTalk.value
+            elif topic.endswith(".voip"):
                 inferred_push_type = NotificationType.VoIP.value
             elif topic.endswith(".complication"):
                 inferred_push_type = NotificationType.Complication.value
             elif topic.endswith(".pushkit.fileprovider"):
                 inferred_push_type = NotificationType.FileProvider.value
+            elif topic.endswith(".push-type.liveactivity"):
+                inferred_push_type = NotificationType.LiveActivity.value
+            elif topic.endswith(".location-query"):
+                inferred_push_type = NotificationType.Location.value
+            elif topic.endswith(".push-type.widgets"):
+                inferred_push_type = NotificationType.Widgets.value
+            elif topic.endswith(".push-type.controls"):
+                inferred_push_type = NotificationType.Controls.value
             elif any(
                 [
                     notification.alert is not None,
@@ -172,8 +187,9 @@ class APNsClient:
         """Extract the 'reason' field from an APNs error response body.
 
         Bodies without a parseable reason (e.g. from an intermediary proxy) are
-        never returned verbatim: a 410 is always Unregistered per the APNs spec,
-        and anything else is reduced to a generic status marker.
+        never returned verbatim: per the APNs spec a 410 always means the token
+        is gone, so it maps to Unregistered; anything else is reduced to a
+        generic status marker.
         """
         if response.status_code == 200:
             return ""

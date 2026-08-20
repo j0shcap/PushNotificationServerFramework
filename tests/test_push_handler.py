@@ -45,7 +45,7 @@ def test_sandbox_flag_targets_development_server(monkeypatch):
 
     handler.send_push("device-token", body="hello")
 
-    assert requests[0].url.host == "api.development.push.apple.com"
+    assert requests[0].url.host == "api.sandbox.push.apple.com"
 
 
 def test_production_server_is_default(monkeypatch):
@@ -96,7 +96,7 @@ def test_sandbox_flag_tolerates_surrounding_whitespace(monkeypatch):
 
     handler.send_push("device-token", body="hello")
 
-    assert requests[0].url.host == "api.development.push.apple.com"
+    assert requests[0].url.host == "api.sandbox.push.apple.com"
 
 
 def test_unrecognized_sandbox_value_is_rejected(monkeypatch):

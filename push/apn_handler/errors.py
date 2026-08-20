@@ -113,6 +113,28 @@ class Unregistered(APNsException):
         self.timestamp = timestamp
 
 
+class ExpiredToken(APNsException):
+    """The device token has expired."""
+
+    def __init__(self, *args, timestamp: str | None = None) -> None:
+        super().__init__(*args)
+
+        self.timestamp = timestamp
+
+
+class InvalidPushType(BadPayloadException):
+    """The apns-push-type value is invalid."""
+
+
+class BadEnvironmentKeyIdInToken(APNsException):
+    """The key ID in the provider token does not match the environment."""
+
+
+class UnrelatedKeyIdInToken(APNsException):
+    """The key ID in the provider token is not related to the key ID used in
+    the first push of this connection."""
+
+
 class PayloadTooLarge(BadPayloadException):
     """The message payload was too large. The maximum payload size is 4096 bytes."""
 
@@ -166,6 +188,10 @@ def exception_class_for_reason(reason: str) -> type[APNsException]:
         "BadPath": BadPath,
         "MethodNotAllowed": MethodNotAllowed,
         "Unregistered": Unregistered,
+        "ExpiredToken": ExpiredToken,
+        "InvalidPushType": InvalidPushType,
+        "BadEnvironmentKeyIdInToken": BadEnvironmentKeyIdInToken,
+        "UnrelatedKeyIdInToken": UnrelatedKeyIdInToken,
         "PayloadTooLarge": PayloadTooLarge,
         "TooManyProviderTokenUpdates": TooManyProviderTokenUpdates,
         "TooManyRequests": TooManyRequests,

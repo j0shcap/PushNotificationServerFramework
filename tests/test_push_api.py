@@ -135,3 +135,16 @@ def test_prune_failure_does_not_discard_push_results(client, apns_handler_factor
 
     assert response.status_code == 200
     assert response.json() == {"good-token": "Success", "stale-token": "Unregistered"}
+
+
+def test_send_push_removes_expired_token_devices(client, apns_handler_factory):
+    override_handler(
+        apns_handler_factory(
+            {"dead-token": (410, {"reason": "ExpiredToken", "timestamp": "1700000000"})}
+        )
+    )
+    client.post("/devices/register", json={"token": "dead-token"})
+
+    client.post("/push/send", json={"recipients": ["dead-token"], "body": "hello"})
+
+    assert client.get("/devices/all").json() == []

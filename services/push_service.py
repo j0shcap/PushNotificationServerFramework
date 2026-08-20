@@ -56,7 +56,11 @@ class PushService:
         results = self.handler.send_multiple_push(
             to_device_tokens=message.recipients, body=message.body
         )
-        stale_tokens = [token for token, result in results.items() if result == "Unregistered"]
+        stale_tokens = [
+            token
+            for token, result in results.items()
+            if result in ("Unregistered", "ExpiredToken")
+        ]
         if stale_tokens:
             # Pruning is best-effort cleanup; the notifications are already
             # sent, so a database failure here must not turn the completed

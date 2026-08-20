@@ -134,3 +134,25 @@ def test_non_dict_json_error_body_maps_to_status_marker(monkeypatch):
         client.send_notification("device-token", Payload(alert="hello"), topic="com.example.test")
 
     assert "HTTPError503" in str(exc_info.value)
+
+
+def test_new_apns_reasons_map_to_typed_exceptions(monkeypatch):
+    from push.apn_handler.errors import InvalidPushType
+
+    client = make_client(monkeypatch, 400, {"reason": "InvalidPushType"})
+
+    with pytest.raises(InvalidPushType):
+        client.send_notification("device-token", Payload(alert="hello"), topic="com.example.test")
+
+
+def test_live_activity_topic_infers_liveactivity_push_type(monkeypatch):
+    requests = []
+    client = make_client(monkeypatch, 200, {}, requests)
+
+    client.send_notification(
+        "device-token",
+        Payload(alert="hello"),
+        topic="com.example.test.push-type.liveactivity",
+    )
+
+    assert requests[0].headers["apns-push-type"] == "liveactivity"
