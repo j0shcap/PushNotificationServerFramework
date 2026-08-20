@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 
 from auth import require_api_key
-from models import Device
+from models import Device, DeviceRegistration
 from services import DeviceService
 
 router = APIRouter(
@@ -12,18 +12,18 @@ router = APIRouter(
 
 
 @router.post("/register", response_model=Device)
-def register_device(device: Device, device_service: DeviceService = Depends()):
+def register_device(registration: DeviceRegistration, device_service: DeviceService = Depends()):
     """
     Registers a new device with the push notification framework.
 
     Args:
-        device (Device): The device to register.
+        registration (DeviceRegistration): The device information to register.
         device_service (DeviceService): An instance of the DeviceService class. Injected by FastAPI.
 
     Returns:
         Device: The registered device.
     """
-    return device_service.register_device(device)
+    return device_service.register_device(registration)
 
 
 @router.get("/all", response_model=list[Device], dependencies=[Depends(require_api_key)])
