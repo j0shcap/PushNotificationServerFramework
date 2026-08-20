@@ -70,46 +70,50 @@ def _free_port() -> int:
 
 
 @pytest.fixture(scope="module")
-def server():
+def server(tmp_path_factory):
     """The real application booted as a subprocess against real Postgres."""
     env = _integration_env()
     _drop_devices_table(env)
     port = _free_port()
     env["PORT"] = str(port)
 
-    # Launched exactly as the README documents, so the entrypoint itself
-    # (including HOST/PORT handling) is part of what these tests cover.
-    process = subprocess.Popen(
-        [sys.executable, "main.py"],
-        cwd=REPO_ROOT,
-        env=env,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-    )
-    base_url = f"http://127.0.0.1:{port}"
-    try:
-        deadline = time.monotonic() + 20
-        while time.monotonic() < deadline:
-            if process.poll() is not None:
-                pytest.fail(f"server exited during startup:\n{process.stdout.read()}")
-            try:
-                if httpx.get(f"{base_url}/health", timeout=1).status_code == 200:
-                    break
-            except httpx.TransportError:
-                time.sleep(0.2)
-        else:
-            pytest.fail("server did not become healthy within 20s")
-
-        yield base_url
-    finally:
-        process.send_signal(signal.SIGINT)
+    # Server output goes to a file, not a pipe: an undrained pipe blocks the
+    # server once its buffer fills, which would hang the suite as it grows.
+    log_path = tmp_path_factory.mktemp("server") / "server.log"
+    with open(log_path, "w") as log_file:
+        # Launched exactly as the README documents, so the entrypoint itself
+        # (including HOST/PORT handling) is part of what these tests cover.
+        process = subprocess.Popen(
+            [sys.executable, "main.py"],
+            cwd=REPO_ROOT,
+            env=env,
+            stdout=log_file,
+            stderr=subprocess.STDOUT,
+        )
+        base_url = f"http://127.0.0.1:{port}"
         try:
-            process.wait(timeout=15)
-        except subprocess.TimeoutExpired:
-            process.kill()
-            pytest.fail("server did not shut down gracefully within 15s")
-    assert process.returncode == 0, f"unclean shutdown:\n{process.stdout.read()}"
+            deadline = time.monotonic() + 20
+            while time.monotonic() < deadline:
+                if process.poll() is not None:
+                    pytest.fail(f"server exited during startup:\n{log_path.read_text()}")
+                try:
+                    if httpx.get(f"{base_url}/health", timeout=1).status_code == 200:
+                        break
+                except httpx.TransportError:
+                    pass
+                time.sleep(0.2)
+            else:
+                pytest.fail("server did not become healthy within 20s")
+
+            yield base_url
+        finally:
+            process.send_signal(signal.SIGINT)
+            try:
+                process.wait(timeout=15)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                pytest.fail("server did not shut down gracefully within 15s")
+    assert process.returncode == 0, f"unclean shutdown:\n{log_path.read_text()}"
 
 
 @pytest.fixture
@@ -160,15 +164,9 @@ def test_registration_rejects_missing_token(anon_api):
     assert anon_api.post("/devices/register", json={"name": "no token"}).status_code == 422
 
 
-@pytest.mark.parametrize(
-    ("method", "path"),
-    [
-        ("GET", "/devices/all"),
-        ("DELETE", "/devices"),
-        ("POST", "/push/send"),
-    ],
-)
-def test_protected_routes_require_credentials(anon_api, method, path):
+def test_protected_routes_require_credentials(anon_api, protected_route):
+    method, path = protected_route
+
     response = anon_api.request(method, path, json={"recipients": [], "body": "x"})
 
     assert response.status_code == 401
