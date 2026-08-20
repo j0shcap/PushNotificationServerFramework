@@ -1,5 +1,6 @@
 """Tests for CORS configuration."""
 
+import pytest
 from fastapi.testclient import TestClient
 
 from main import create_app
@@ -38,3 +39,10 @@ def test_unlisted_origin_is_rejected(monkeypatch):
     )
 
     assert "access-control-allow-origin" not in response.headers
+
+
+def test_wildcard_origin_is_rejected(monkeypatch):
+    monkeypatch.setenv("CORS_ORIGINS", "*")
+
+    with pytest.raises(ValueError, match="CORS_ORIGINS"):
+        create_app()

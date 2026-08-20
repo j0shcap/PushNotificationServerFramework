@@ -48,3 +48,21 @@ def test_startup_fails_without_api_key(test_engine, monkeypatch):
 
     with pytest.raises(RuntimeError, match="API_KEY"), TestClient(app):
         pass
+
+
+def test_missing_api_key_at_request_time_yields_401_not_500(anon_client, monkeypatch):
+    monkeypatch.delenv("API_KEY")
+
+    response = anon_client.get("/devices/all", headers={"Authorization": "Bearer anything"})
+
+    assert response.status_code == 401
+
+
+def test_placeholder_api_key_logs_a_warning(test_engine, monkeypatch, caplog):
+    monkeypatch.setattr(database, "engine", test_engine)
+    monkeypatch.setenv("API_KEY", "CHANGE_ME")
+
+    with TestClient(app):
+        pass
+
+    assert any("CHANGE_ME" in record.message for record in caplog.records)

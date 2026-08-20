@@ -24,7 +24,7 @@ def require_api_key(
         HTTPException: 401 if the header is missing or the key does not match.
     """
     if credentials is None or not secrets.compare_digest(
-        credentials.credentials.encode(), getenv("API_KEY").encode()
+        credentials.credentials.encode(), getenv("API_KEY", "").encode()
     ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
