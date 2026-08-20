@@ -3,7 +3,7 @@
 import sqlalchemy
 from sqlalchemy.orm import Session
 
-from utils import getenv
+from utils import getenv, getenv_bool
 
 
 def _engine_str(name: str = getenv("DB_NAME")) -> str:
@@ -25,8 +25,9 @@ def _engine_str(name: str = getenv("DB_NAME")) -> str:
     return f"{dialect}://{user}:{password}@{host}:{port}/{name}"
 
 
-engine = sqlalchemy.create_engine(_engine_str(), echo=True)
-"""Application-level SQLAlchemy database engine."""
+# Application-level SQLAlchemy database engine. SQL statement logging would
+# include device tokens, so it is opt-in via DB_ECHO for local debugging only.
+engine = sqlalchemy.create_engine(_engine_str(), echo=getenv_bool("DB_ECHO"))
 
 
 def db_session():
