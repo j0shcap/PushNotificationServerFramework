@@ -1,4 +1,4 @@
-from utils import getenv
+from utils import getenv, getenv_bool
 
 from .apn_handler import TokenCredentials
 
@@ -61,12 +61,7 @@ class PushConfig:
             ValueError: If the variable is set to an unrecognized value, rather
                 than silently falling back to the production environment.
         """
-        value = getenv("APNS_USE_SANDBOX", "false").strip().lower()
-        if value in ("1", "true", "yes", "on"):
-            return True
-        if value in ("0", "false", "no", "off", ""):
-            return False
-        raise ValueError(f"APNS_USE_SANDBOX must be a boolean value, got {value!r}")
+        return getenv_bool("APNS_USE_SANDBOX")
 
     @classmethod
     def get_token_credentials(cls) -> TokenCredentials:

@@ -1,4 +1,5 @@
-# Runs lint, type checks, and tests on every push and pull request to main.
+# Runs lint, type checks, unit tests, and Postgres-backed integration tests
+# on every push and pull request to main.
 
 name: Python application
 
@@ -15,6 +16,26 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      INTEGRATION_DB_HOST: localhost
+      INTEGRATION_DB_PORT: "5432"
+      INTEGRATION_DB_NAME: postgres
+      INTEGRATION_DB_USERNAME: postgres
+      INTEGRATION_DB_PASSWORD: postgres
 
     steps:
     - uses: actions/checkout@v4
@@ -33,6 +54,6 @@ jobs:
         ruff check .
         ruff format --check .
     - name: Type-check with mypy
-      run: mypy apis entities models push services utils main.py database.py
+      run: mypy apis entities models push services utils main.py database.py auth.py
     - name: Test with pytest
       run: pytest

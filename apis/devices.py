@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends
 
+from auth import require_api_key
 from models import Device
 from services import DeviceService
 
@@ -25,7 +26,7 @@ def register_device(device: Device, device_service: DeviceService = Depends()):
     return device_service.register_device(device)
 
 
-@router.get("/all", response_model=list[Device])
+@router.get("/all", response_model=list[Device], dependencies=[Depends(require_api_key)])
 def get_registered_devices(
     device_service: DeviceService = Depends(),
 ):
@@ -41,12 +42,11 @@ def get_registered_devices(
     return device_service.get_registered_devices()
 
 
-# FOR TESTING PURPOSES ONLY
-@router.get("/clear", response_model=None)
+@router.delete("", response_model=None, dependencies=[Depends(require_api_key)])
 def clear_registered_devices(
     device_service: DeviceService = Depends(),
 ):
     """
-    Clears all registered devices from the device service.
+    Deletes all registered devices.
     """
     return device_service.clear_registered_devices()
