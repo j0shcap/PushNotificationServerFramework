@@ -13,6 +13,7 @@ import database
 from apis import devices, push
 from entities import EntityBase
 from push import shutdown_push_handler
+from utils import getenv
 
 
 @asynccontextmanager
@@ -27,35 +28,44 @@ async def lifespan(app: FastAPI):
     shutdown_push_handler()
 
 
-app = FastAPI(lifespan=lifespan)
+def create_app() -> FastAPI:
+    """
+    Builds the FastAPI application.
 
-# Configure as needed
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
-    allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
-)
+    Cross-origin requests are disabled unless the CORS_ORIGINS environment
+    variable lists the allowed origins (comma-separated). iOS apps do not use
+    CORS; only enable it when serving a web frontend.
+    """
+    app = FastAPI(lifespan=lifespan)
 
-# List of routers
-routers: list[APIRouter] = [devices.router, push.router]
+    cors_origins = [
+        origin.strip() for origin in getenv("CORS_ORIGINS", "").split(",") if origin.strip()
+    ]
+    if cors_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=cors_origins,
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
 
-# Add routers to app
-for router in routers:
-    app.include_router(router)
+    routers: list[APIRouter] = [devices.router, push.router]
+    for router in routers:
+        app.include_router(router)
+
+    @app.get("/health")
+    async def health():
+        return {"message": "OK"}
+
+    @app.get("/")
+    async def root():
+        return {"message": "Hello World"}
+
+    return app
 
 
-# Application-Level Health Checks
-@app.get("/health")
-async def health():
-    return {"message": "OK"}
-
-
-@app.get("/")
-async def root():
-    return {"message": "Hello World"}
-
+app = create_app()
 
 if __name__ == "__main__":
     import uvicorn
