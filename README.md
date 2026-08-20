@@ -42,7 +42,19 @@ To install this repository, follow these steps:
 ## Configuration
 Configure the application by creating an .env file based off the template. Set the necessary parameters like database connection parameters and APNs identifiers.
 
-Set `APNS_USE_SANDBOX=true` when testing with development builds; their device tokens are only valid against the APNs sandbox environment.
+- `API_KEY` (required): the secret protected endpoints require. The server refuses to start without it.
+- `APNS_USE_SANDBOX`: set to `true` when testing with development builds; their device tokens are only valid against the APNs sandbox environment.
+- `CORS_ORIGINS`: comma-separated origins allowed to make cross-origin requests. Unset by default, which disables CORS entirely — iOS apps do not use CORS; only set this when serving a web frontend.
+- `DB_ECHO`: set to `true` to log SQL statements during development. Off by default because statements include device tokens.
+
+## Authentication
+Endpoints that send pushes or expose device data require the API key:
+
+```
+Authorization: Bearer <API_KEY>
+```
+
+Requests without a valid key receive `401 Unauthorized`. `/devices/register` is deliberately open: it is called by the iOS app itself, and shipping the key inside the app binary would expose it. The worst an unauthenticated caller can do is register junk tokens, which APNs pruning removes on the next push.
 
 ## Running the Server
 To start the server, run the following command:
@@ -73,15 +85,18 @@ To implement push notifications in an iOS application, follow the steps below:
 #### Retrieve Devices Information
 - **Endpoint**: `/devices/all`
 - **Method**: `GET`
+- **Auth**: Requires API key
 
-#### Clear Devices Information
-- **Endpoint**: `/devices/clear`
-- **Method**: `GET`
+#### Delete All Devices
+- **Endpoint**: `/devices`
+- **Method**: `DELETE`
+- **Auth**: Requires API key
 
 ## Push Endpoints
 #### Send a Push Notification
 - **Endpoint**: `/push/send`
 - **Method**: `POST`
+- **Auth**: Requires API key
 - **Body**:
   ```json
   {
@@ -111,10 +126,28 @@ The `Device` entity and its model represent a device registered with the server.
 - `model`: The model of the device. (Optional, String)
 - `localizedModel`: The model of the device as a localized string. (Optional, String)
 
-### FastAPI CORS Middleware
-This middleware was left in the project to allow for cross-origin requests during development. This decision was made to enable CORS with frontend applications during development. However, it is not recommended to enable CORS in production environments as it can lead to security vulnerabilities.
+### CORS
+Cross-origin requests are disabled by default. To develop a web frontend against the server, set `CORS_ORIGINS` to the exact origins you serve it from (never a wildcard in production).
 
 **Note**: CORS is a browser security feature that prevents cross-origin requests. It does not affect requests from iOS applications.
+
+## Testing
+Run the unit and API test suite:
+```bash
+pytest
+```
+
+Integration tests boot the real server against a real Postgres and drive it over HTTP. Point them at any Postgres instance (for example, a disposable container):
+```bash
+docker run -d --name pnsf-test-pg -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:16-alpine
+INTEGRATION_DB_HOST=localhost pytest tests/integration
+```
+CI runs both suites, plus ruff and mypy, on every push and pull request.
+
+To verify real APNs connectivity with your own credentials (this sends one request to Apple's sandbox):
+```bash
+APNS_USE_SANDBOX=true python scripts/e2e_apns_sandbox.py <sandbox_device_token>
+```
 
 ## Contributing
 Contributions to this repository are welcome. Please follow the standard GitHub pull request process to propose changes.
