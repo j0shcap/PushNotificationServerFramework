@@ -37,3 +37,13 @@ check_untyped_defs = true
 [[tool.mypy.overrides]]
 module = "tests.*"
 disable_error_code = ["method-assign"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+markers = [
+    "integration: boots the real server against real Postgres (needs INTEGRATION_DB_HOST)",
+]
+
+[tool.coverage.run]
+omit = [".venv/*", "tests/*"]

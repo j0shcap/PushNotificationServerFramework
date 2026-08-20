@@ -156,3 +156,63 @@ def test_live_activity_topic_infers_liveactivity_push_type(monkeypatch):
     )
 
     assert requests[0].headers["apns-push-type"] == "liveactivity"
+
+
+def test_optional_headers_are_sent_when_specified(monkeypatch):
+    from push.apn_handler.client import NotificationPriority
+
+    requests = []
+    client = make_client(monkeypatch, 200, {}, requests)
+
+    client.send_notification(
+        "device-token",
+        Payload(alert="hello"),
+        topic="com.example.test",
+        priority=NotificationPriority.Delayed,
+        expiration=0,
+        collapse_id="thread-1",
+    )
+
+    headers = requests[0].headers
+    assert headers["apns-priority"] == "5"
+    assert headers["apns-expiration"] == "0"
+    assert headers["apns-collapse-id"] == "thread-1"
+
+
+def test_default_priority_sends_no_priority_header(monkeypatch):
+    requests = []
+    client = make_client(monkeypatch, 200, {}, requests)
+
+    client.send_notification("device-token", Payload(alert="hello"), topic="com.example.test")
+
+    assert "apns-priority" not in requests[0].headers
+
+
+def test_silent_payload_infers_background_push_type(monkeypatch):
+    requests = []
+    client = make_client(monkeypatch, 200, {}, requests)
+
+    client.send_notification(
+        "device-token", Payload(content_available=True), topic="com.example.test"
+    )
+
+    assert requests[0].headers["apns-push-type"] == "background"
+
+
+def test_no_topic_sends_no_topic_or_push_type_headers(monkeypatch):
+    requests = []
+    client = make_client(monkeypatch, 200, {}, requests)
+
+    client.send_notification("device-token", Payload(alert="hello"))
+
+    assert "apns-topic" not in requests[0].headers
+    assert "apns-push-type" not in requests[0].headers
+
+
+def test_expired_token_maps_to_typed_exception(monkeypatch):
+    from push.apn_handler.errors import ExpiredToken
+
+    client = make_client(monkeypatch, 410, {"reason": "ExpiredToken", "timestamp": "1700000000"})
+
+    with pytest.raises(ExpiredToken):
+        client.send_notification("dead-token", Payload(alert="hello"), topic="com.example.test")
