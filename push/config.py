@@ -1,53 +1,24 @@
 from utils import getenv, getenv_bool
 
-from .apn_handler import TokenCredentials
+from .apn_handler import CertificateCredentials, Credentials, TokenCredentials
 
 
 class PushConfig:
     """
-    A class representing the configuration for push notifications.
+    Reads push notification configuration from the environment.
+
+    Token-based authentication with an APNs .p8 key is the default and
+    Apple's recommended mechanism (keys do not expire). Setting
+    APNS_CERT_PATH switches to certificate authentication using a PEM file
+    containing the provider certificate and its private key.
     """
-
-    AUTH_KEY_PATH: str | None = None
-    AUTH_KEY_ID: str | None = None
-    TEAM_ID: str | None = None
-    APNS_APP_BUNDLE_ID: str | None = None
-
-    @classmethod
-    def get_auth_key_path(cls) -> str:
-        """
-        Returns the path to the authentication key for APNS.
-        """
-        if not cls.AUTH_KEY_PATH:
-            cls.AUTH_KEY_PATH = getenv("APNS_AUTH_KEY_PATH")
-        return cls.AUTH_KEY_PATH
-
-    @classmethod
-    def get_auth_key_id(cls) -> str:
-        """
-        Returns the ID of the authentication key for APNS.
-        """
-        if not cls.AUTH_KEY_ID:
-            cls.AUTH_KEY_ID = getenv("APNS_KEY_ID")
-        return cls.AUTH_KEY_ID
-
-    @classmethod
-    def get_team_id(cls) -> str:
-        """
-        Returns the team ID for APNS.
-        """
-        if not cls.TEAM_ID:
-            cls.TEAM_ID = getenv("APNS_TEAM_ID")
-        return cls.TEAM_ID
 
     @classmethod
     def get_apns_app_bundle_id(cls) -> str:
         """
-        Returns the bundle ID for the APNS app.
+        Returns the bundle ID pushes are addressed to (the apns-topic header).
         """
-        if not cls.APNS_APP_BUNDLE_ID:
-            cls.APNS_APP_BUNDLE_ID = getenv("APNS_APP_BUNDLE_ID")
-        return cls.APNS_APP_BUNDLE_ID
+        return getenv("APNS_APP_BUNDLE_ID")
 
     @classmethod
     def get_use_sandbox(cls) -> bool:
@@ -64,12 +35,21 @@ class PushConfig:
         return getenv_bool("APNS_USE_SANDBOX")
 
     @classmethod
-    def get_token_credentials(cls) -> TokenCredentials:
+    def get_credentials(cls) -> Credentials:
         """
-        Returns the token credentials for APNS.
+        Builds APNs credentials from the environment.
+
+        Returns:
+            CertificateCredentials when APNS_CERT_PATH is set (with the
+            passphrase from APNS_CERT_PASSWORD, if any); TokenCredentials
+            built from APNS_AUTH_KEY_PATH, APNS_KEY_ID, and APNS_TEAM_ID
+            otherwise.
         """
+        cert_path = getenv("APNS_CERT_PATH", "")
+        if cert_path:
+            return CertificateCredentials(cert_path, password=getenv("APNS_CERT_PASSWORD", None))
         return TokenCredentials(
-            auth_key_path=cls.get_auth_key_path(),
-            auth_key_id=cls.get_auth_key_id(),
-            team_id=cls.get_team_id(),
+            auth_key_path=getenv("APNS_AUTH_KEY_PATH"),
+            auth_key_id=getenv("APNS_KEY_ID"),
+            team_id=getenv("APNS_TEAM_ID"),
         )
