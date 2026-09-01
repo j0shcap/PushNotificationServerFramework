@@ -66,9 +66,7 @@ class TestDeviceLifecycle:
         assert api.delete("/devices").status_code == 200
         assert api.get("/devices/all").json() == []
 
-    def test_reregistration_preserves_created_at_and_identity(
-        self, anon_api: httpx.Client
-    ) -> None:
+    def test_reregistration_preserves_created_at_and_identity(self, anon_api: httpx.Client) -> None:
         first = anon_api.post("/devices/register", json={"token": "stable-token"}).json()
         second = anon_api.post(
             "/devices/register", json={"token": "stable-token", "name": "Named later"}
@@ -96,9 +94,7 @@ class TestDeviceLifecycle:
         for field, value in registration.items():
             assert stored[field] == value
 
-    def test_many_devices_are_all_listed(
-        self, api: httpx.Client, anon_api: httpx.Client
-    ) -> None:
+    def test_many_devices_are_all_listed(self, api: httpx.Client, anon_api: httpx.Client) -> None:
         for i in range(25):
             response = anon_api.post("/devices/register", json={"token": f"bulk-token-{i}"})
             assert response.status_code == 200
