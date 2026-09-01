@@ -1,5 +1,7 @@
 """Tests for the /devices endpoints."""
 
+import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import event
 from sqlalchemy.orm import Session
 
@@ -30,10 +32,28 @@ def test_register_device_stores_optional_fields(client):
     assert body["systemVersion"] == "17.0"
 
 
-def test_register_device_without_token_is_rejected(client):
-    response = client.post("/devices/register", json={"name": "no token"})
+@pytest.mark.parametrize(
+    "registration",
+    [
+        {"name": "no token"},
+        {"token": ""},
+        {"token": "a" * 256},
+    ],
+    ids=["missing token", "empty token", "token over column limit"],
+)
+def test_register_device_with_invalid_token_is_rejected(
+    client: TestClient, registration: dict[str, str]
+) -> None:
+    response = client.post("/devices/register", json=registration)
 
     assert response.status_code == 422
+    assert client.get("/devices/all").json() == []
+
+
+def test_register_device_accepts_token_at_column_limit(client: TestClient) -> None:
+    response = client.post("/devices/register", json={"token": "a" * 255})
+
+    assert response.status_code == 200
 
 
 def test_get_all_devices_returns_registered_devices(client):
