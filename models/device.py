@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class DeviceRegistration(BaseModel):
@@ -16,7 +16,9 @@ class DeviceRegistration(BaseModel):
         localizedModel (str): The localized model of the device.
     """
 
-    token: str
+    # Bounded to the devices.token column (String(255)) so oversized input
+    # fails validation instead of raising a database error.
+    token: str = Field(min_length=1, max_length=255)
     name: str | None = None
     systemName: str | None = None
     systemVersion: str | None = None
